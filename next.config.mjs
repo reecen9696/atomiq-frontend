@@ -7,8 +7,8 @@ const projectRoot = dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   reactStrictMode: true,
   turbopack: {
-    root: projectRoot
-  }
+    root: projectRoot,
+  },
 };
 
 export default nextConfig;

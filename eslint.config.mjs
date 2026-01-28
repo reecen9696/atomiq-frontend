@@ -10,14 +10,14 @@ export default [
     files: ["**/*.{ts,tsx,js,jsx}"],
     languageOptions: {
       ecmaVersion: "latest",
-      sourceType: "module"
+      sourceType: "module",
     },
     plugins: {
-      "@next/next": nextPlugin
+      "@next/next": nextPlugin,
     },
     rules: {
       ...nextPlugin.configs.recommended.rules,
-      ...nextPlugin.configs["core-web-vitals"].rules
-    }
-  }
+      ...nextPlugin.configs["core-web-vitals"].rules,
+    },
+  },
 ];

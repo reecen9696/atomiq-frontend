@@ -1,4 +1,9 @@
-export type WsClientStatus = "idle" | "connecting" | "open" | "closed" | "error";
+export type WsClientStatus =
+  | "idle"
+  | "connecting"
+  | "open"
+  | "closed"
+  | "error";
 
 type WsHandlers = {
   onOpen?: () => void;

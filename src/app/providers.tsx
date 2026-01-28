@@ -12,10 +12,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
           queries: {
             staleTime: 15_000,
             refetchOnWindowFocus: false,
-            retry: 1
-          }
-        }
-      })
+            retry: 1,
+          },
+        },
+      }),
   );
 
   return (
