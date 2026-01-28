@@ -19,7 +19,7 @@ export default function RootLayout({
       <body>
         <Providers>
           <TopNavbar />
-          <div className="pb-20 sm:pb-0">{children}</div>
+          <div className="pt-20 pb-20 sm:pb-0">{children}</div>
           <MobileBottomNav />
         </Providers>
       </body>

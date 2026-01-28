@@ -1,26 +1,26 @@
 import { Container } from "@/components/layout/container";
-import Image from "next/image";
+import { WinnerCard } from "@/components/ui/winner-card";
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen justify-center bg-casino-bg">
-      <Container>
-        <div className="pt-12 bg-amber-400 flex flex-row gap-2 p-4">
-          <Image
-            src="/games/game1.png"
-            alt="Atomik"
-            width={56}
-            height={16}
-            className="block"
-            priority
+    <main className="min-h-screen bg-casino-bg">
+      <Container className="py-8">
+        <div className="flex gap-4 overflow-x-auto">
+          <WinnerCard
+            gameName="LuckyPoker"
+            gameImage="/games/game1.png"
+            amount="0.092856"
           />
-          <div className="flex flex-col pl-5 bg-amber-950 justify-end">
-            <p>LuckyPoker</p>
-            <div className="flex space-x-2 gap-1">
-              <div className="rounded-full bg-red-600 w-6 h-6"></div>
-              <p>0.092856</p>
-            </div>
-          </div>
+          <WinnerCard
+            gameName="LuckyPoker"
+            gameImage="/games/game1.png"
+            amount="0.092856"
+          />
+          <WinnerCard
+            gameName="LuckyPoker"
+            gameImage="/games/game1.png"
+            amount="0.092856"
+          />
         </div>
       </Container>
     </main>

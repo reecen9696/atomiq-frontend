@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 import animate from "tailwindcss-animate";
 
 const config: Config = {
-  darkMode: ["class"],
+  darkMode: "class",
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
@@ -28,9 +28,9 @@ const config: Config = {
         medium: "500",
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "6px",
+        md: "12px",
+        lg: "16px",
       },
       keyframes: {
         "fade-in": {
