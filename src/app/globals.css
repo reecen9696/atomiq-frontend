@@ -1,0 +1,73 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap");
+
+@import "tailwindcss";
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+:root {
+  --casino-bg: #100e11;
+  --casino-border: #1e2938;
+  --casino-card: #131216;
+
+  --primary-purple: #7717ff;
+  --primary-purple-hover: #6412e6;
+  --primary-purple-light: rgba(106, 20, 237, 0.2);
+
+  --text-primary: rgba(255, 255, 255, 0.87);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-gray: #888;
+  --text-gray-300: #d1d5db;
+  --text-gray-400: #9ca3af;
+  --text-gray-600: #4b5563;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+  --radius: var(--radius-md);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--casino-bg);
+  color: var(--text-primary);
+  font-family: "Aeonik", "Inter", sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+html {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+strong,
+b {
+  font-weight: 500 !important;
+}
