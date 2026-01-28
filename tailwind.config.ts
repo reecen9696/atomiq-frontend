@@ -20,8 +20,8 @@ const config: Config = {
         "text-gray-600": "var(--text-gray-600)",
       },
       fontFamily: {
+        sans: ["DM Sans", "Inter", "sans-serif"],
         aeonik: ["Aeonik", "Inter", "sans-serif"],
-        sans: ["Aeonik", "Inter", "sans-serif"],
       },
       fontWeight: {
         normal: "400",

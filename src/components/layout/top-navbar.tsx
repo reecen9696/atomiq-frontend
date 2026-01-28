@@ -5,7 +5,7 @@ import { Container } from "@/components/layout/container";
 export function TopNavbar() {
   return (
     <header className="sticky top-0 z-50 flex w-full justify-center border-b border-[#1E2938] bg-[#0F0E11]">
-      <Container className="flex h-20 items-center justify-between">
+      <Container className="flex h-18 items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
             href="/"

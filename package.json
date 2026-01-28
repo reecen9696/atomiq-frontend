@@ -11,14 +11,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@radix-ui/react-slot": "latest",
+    "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-query": "latest",
     "@tanstack/react-query-devtools": "latest",
     "@tanstack/react-table": "latest",
     "@tanstack/react-virtual": "latest",
     "class-variance-authority": "latest",
     "clsx": "latest",
+    "embla-carousel-react": "^8.6.0",
     "framer-motion": "latest",
+    "lucide-react": "^0.563.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
@@ -37,7 +39,7 @@
     "postcss": "latest",
     "tailwindcss": "latest",
     "tailwindcss-animate": "latest",
-    "typescript-eslint": "latest",
-    "typescript": "latest"
+    "typescript": "latest",
+    "typescript-eslint": "latest"
   }
 }

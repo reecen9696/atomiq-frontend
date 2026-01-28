@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-interface WinnerCardProps {
+export interface WinnerCardProps {
   gameName: string;
   gameImage: string;
   amount: string;
