@@ -28,9 +28,14 @@ export function RecentBlocks({ limit = 5 }: RecentBlocksProps) {
     <Card className="h-full flex flex-col p-6">
       <CardHeader className="flex-row justify-between items-center mb-4 ">
         <CardTitle>Recent Blocks</CardTitle>
-        <button className="text-sm font-medium text-[#8370E9] hover:text-[#9485F5] transition-colors cursor-pointer">
+        <a 
+          href="https://explorer.atomiq.network/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm font-medium text-[#8370E9] hover:text-[#9485F5] transition-colors cursor-pointer"
+        >
           See all
-        </button>
+        </a>
       </CardHeader>
 
       <CardContent className="flex flex-col h-full justify-between ">
