@@ -6,7 +6,7 @@
 import React from "react";
 import Image from "next/image";
 import { BetData } from "@/mocks/bets";
-import { colors, components } from '@/design-system/tokens';
+import { colors, components } from "@/design-system/tokens";
 
 interface BetsTableProps {
   bets: BetData[];

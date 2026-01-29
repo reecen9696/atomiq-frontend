@@ -14,13 +14,13 @@ import Image from "next/image";
 import { useState } from "react";
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState('latest-bets');
+  const [activeTab, setActiveTab] = useState("latest-bets");
 
   const betsTabItems: TabItem[] = [
-    { id: 'latest-bets', label: 'Latest Bets' },
-    { id: 'high-rollers', label: 'High Rollers' },
-    { id: 'my-bets', label: 'My Bets' },
-    { id: 'lucky-wins', label: 'Lucky Wins' },
+    { id: "latest-bets", label: "Latest Bets" },
+    { id: "high-rollers", label: "High Rollers" },
+    { id: "my-bets", label: "My Bets" },
+    { id: "lucky-wins", label: "Lucky Wins" },
   ];
 
   return (
@@ -31,7 +31,7 @@ export default function HomePage() {
           <div className="space-y-4">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col lg:flex-row gap-4 lg:h-96">
-                <div className="relative h-64 lg:h-auto lg:w-[72.414%] overflow-hidden rounded-xlg">
+                <div className="relative w-full lg:w-[72.414%] aspect-[16/9] overflow-hidden rounded-xlg">
                   <Image
                     src="/brand/banner.png"
                     alt="Banner"
