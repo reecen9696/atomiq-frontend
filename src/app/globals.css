@@ -11,6 +11,8 @@
 }
 
 @theme {
+  --font-planar: "GT Planar", "Inter", sans-serif;
+  
   --radius-xsm: 4px;
   --radius-sm: 6px;
   --radius-md: 12px;
