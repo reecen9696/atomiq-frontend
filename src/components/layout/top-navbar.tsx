@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export function TopNavbar() {
   return (
-    <header className="sticky top-0 z-50 flex h-20 w-full items-center justify-between border-b border-[#1E2938] bg-[#0F0E11] px-4 sm:px-6 lg:px-10 2xl:px-12">
+    <header className="sticky top-0 z-50 flex h-18 w-full items-center justify-between border-b border-[#1E2938] bg-[#0F0E11] px-4 sm:px-6 lg:px-10 2xl:px-12">
       <div className="flex items-center gap-3">
         <Link
           href="/"

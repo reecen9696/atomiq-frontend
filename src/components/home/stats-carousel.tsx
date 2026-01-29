@@ -6,13 +6,37 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
-import type { StatCard } from "@/types/stat-card";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useStats } from "@/hooks";
 
-interface StatsCarouselProps {
-  stats: StatCard[];
-}
+export function StatsCarousel() {
+  const { data: stats, isLoading, error } = useStats();
 
-export function StatsCarousel({ stats }: StatsCarouselProps) {
+  if (error) {
+    return (
+      <div className="w-full">
+        <p className="text-sm text-red-500">Failed to load stats</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="w-full">
+        <div className="flex gap-4 overflow-x-auto">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 w-85 rounded-xlg shrink-0" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats || stats.length === 0) {
+    return null;
+  }
+
   return (
     <Carousel
       opts={{
@@ -24,7 +48,7 @@ export function StatsCarousel({ stats }: StatsCarouselProps) {
       <CarouselContent className="gap-4">
         {stats.map((card) => (
           <CarouselItem key={card.id} className="basis-85">
-            <div className="relative h-40 w-85 shrink-0 overflow-hidden rounded-xlg border border-[#1E2938]">
+            <Card className="relative h-40 w-85 shrink-0 overflow-hidden p-0">
               <Image
                 src="/brand/statcard.png"
                 alt="Stat card"
@@ -47,7 +71,7 @@ export function StatsCarousel({ stats }: StatsCarouselProps) {
                   {card.value}
                 </div>
               </div>
-            </div>
+            </Card>
           </CarouselItem>
         ))}
       </CarouselContent>

@@ -11,13 +11,38 @@
 }
 
 @theme {
+  /* Fonts */
   --font-planar: "GT Planar", "Inter", sans-serif;
-  
+
+  /* Border Radius - Tailwind v4 */
   --radius-xsm: 4px;
   --radius-sm: 6px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-xlg: 16px;
+  --radius-xlg: 20px;
+
+  /* Casino Color System */
+  --color-casino-bg: #100e11;
+  --color-casino-border: #1e2938;
+  --color-casino-card: #131216;
+  --color-casino-card-dark: #0f0e11;
+  --color-casino-card-light: #211f28;
+
+  /* Primary Colors */
+  --color-primary-purple: #7717ff;
+  --color-primary-purple-hover: #6412e6;
+  --color-primary-purple-light: rgba(106, 20, 237, 0.2);
+  --color-highlight: #8370e9;
+
+  /* Text Colors */
+  --color-text-primary: rgba(255, 255, 255, 0.87);
+  --color-text-secondary: rgba(255, 255, 255, 0.7);
+  --color-text-tertiary: rgba(255, 255, 255, 0.6);
+  --color-text-gray: #888;
+  --color-text-gray-300: #d1d5db;
+  --color-text-gray-400: #9ca3af;
+  --color-text-gray-500: #9da3af;
+  --color-text-gray-600: #4b5563;
 }
 
 @keyframes shimmer {
@@ -27,27 +52,19 @@
 }
 
 :root {
-  --casino-bg: #100e11;
-  --casino-border: #1e2938;
-  --casino-card: #131216;
-
-  --primary-purple: #7717ff;
-  --primary-purple-hover: #6412e6;
-  --primary-purple-light: rgba(106, 20, 237, 0.2);
-
-  --text-primary: rgba(255, 255, 255, 0.87);
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --text-gray: #888;
-  --text-gray-300: #d1d5db;
-  --text-gray-400: #9ca3af;
-  --text-gray-600: #4b5563;
-
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-full: 9999px;
-  --radius: var(--radius-md);
+  /* Legacy support - map to @theme values */
+  --casino-bg: var(--color-casino-bg);
+  --casino-border: var(--color-casino-border);
+  --casino-card: var(--color-casino-card);
+  --primary-purple: var(--color-primary-purple);
+  --primary-purple-hover: var(--color-primary-purple-hover);
+  --primary-purple-light: var(--color-primary-purple-light);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-gray: var(--color-text-gray);
+  --text-gray-300: var(--color-text-gray-300);
+  --text-gray-400: var(--color-text-gray-400);
+  --text-gray-600: var(--color-text-gray-600);
 }
 
 html,

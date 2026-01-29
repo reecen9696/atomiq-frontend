@@ -6,42 +6,20 @@ const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      // Colors defined in globals.css @theme
       colors: {
-        "casino-bg": "var(--casino-bg)",
-        "casino-border": "var(--casino-border)",
-        "casino-card": "var(--casino-card)",
-        "primary-purple": "var(--primary-purple)",
-        "primary-purple-hover": "var(--primary-purple-hover)",
-        "text-primary": "var(--text-primary)",
-        "text-secondary": "var(--text-secondary)",
-        "text-gray": "var(--text-gray)",
-        "text-gray-300": "var(--text-gray-300)",
-        "text-gray-400": "var(--text-gray-400)",
-        "text-gray-600": "var(--text-gray-600)",
+        "casino-bg": "var(--color-casino-bg)",
+        "casino-border": "var(--color-casino-border)",
+        "casino-card": "var(--color-casino-card)",
+        "primary-purple": "var(--color-primary-purple)",
+        "primary-purple-hover": "var(--color-primary-purple-hover)",
+        "text-primary": "var(--color-text-primary)",
+        "text-secondary": "var(--color-text-secondary)",
       },
-      fontFamily: {
-        sans: ["DM Sans", "Inter", "sans-serif"],
-        aeonik: ["Aeonik", "Inter", "sans-serif"],
-        planar: ["GT Planar", "Inter", "sans-serif"],
-      },
-      fontWeight: {
-        normal: "400",
-        medium: "500",
-      },
-      borderRadius: {
-        sm: "6px",
-        md: "12px",
-        lg: "16px",
-        xlg: "20px",
-      },
-      keyframes: {
-        "fade-in": {
-          "0%": { opacity: "0", transform: "translateY(10px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" },
-        },
-      },
-      animation: {
-        "fade-in": "fade-in 300ms ease-out",
+      // Spacing values
+      spacing: {
+        "85": "340px", // w-85 for stat cards
+        "300": "1200px", // max-w-300 for container
       },
     },
   },
