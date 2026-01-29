@@ -146,7 +146,9 @@ export const BundleSplitting = {
   ): Promise<T> => {
     try {
       const module = await importFn();
-      return "default" in (module as object) ? (module as { default: T }).default : (module as T);
+      return "default" in (module as object)
+        ? (module as { default: T }).default
+        : (module as T);
     } catch (error) {
       console.error("Failed to load module:", error);
       if (fallback) {

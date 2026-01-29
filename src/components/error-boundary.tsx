@@ -1,14 +1,18 @@
 "use client";
 
 import React, { type ErrorInfo, type ReactNode } from "react";
-import { errorHandler, type AppError, ErrorSeverity } from "@/lib/error-handling";
+import {
+  errorHandler,
+  type AppError,
+  ErrorSeverity,
+} from "@/lib/error-handling";
 import { config } from "@/config";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: AppError, errorInfo: ErrorInfo) => void;
-  level?: 'page' | 'section' | 'component';
+  level?: "page" | "section" | "component";
 }
 
 interface ErrorBoundaryState {
@@ -37,7 +41,7 @@ export class ErrorBoundary extends React.Component<
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     // Convert to AppError for consistent handling
     const appError = errorHandler.handle(error, {
-      source: 'error-boundary',
+      source: "error-boundary",
       timestamp: Date.now(),
     });
 
@@ -50,7 +54,7 @@ export class ErrorBoundary extends React.Component<
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const appError = errorHandler.handle(error, {
       componentStack: errorInfo.componentStack,
-      errorBoundary: this.props.level || 'component',
+      errorBoundary: this.props.level || "component",
       retryCount: this.retryCount,
     });
 
@@ -66,10 +70,10 @@ export class ErrorBoundary extends React.Component<
 
     // Log additional context in development
     if (config.features.enableDevtools) {
-      console.group('🚨 Error Boundary Caught Error');
-      console.error('Error:', error);
-      console.error('Error Info:', errorInfo);
-      console.error('App Error:', appError.toJSON());
+      console.group("🚨 Error Boundary Caught Error");
+      console.error("Error:", error);
+      console.error("Error Info:", errorInfo);
+      console.error("App Error:", appError.toJSON());
       console.groupEnd();
     }
   }
@@ -77,7 +81,11 @@ export class ErrorBoundary extends React.Component<
   private handleRetry = () => {
     if (this.retryCount < this.maxRetries) {
       this.retryCount++;
-      this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+      this.setState({
+        hasError: false,
+        error: undefined,
+        errorInfo: undefined,
+      });
     }
   };
 
@@ -87,10 +95,10 @@ export class ErrorBoundary extends React.Component<
 
   private renderErrorUI = () => {
     const { error } = this.state;
-    const { level = 'component' } = this.props;
+    const { level = "component" } = this.props;
 
     // Different UI based on error severity and boundary level
-    if (error?.severity === ErrorSeverity.CRITICAL || level === 'page') {
+    if (error?.severity === ErrorSeverity.CRITICAL || level === "page") {
       return (
         <div className="flex items-center justify-center min-h-screen bg-casino-bg p-8">
           <div className="text-center max-w-md">
@@ -102,10 +110,11 @@ export class ErrorBoundary extends React.Component<
                 Something went wrong
               </h1>
               <p className="text-white/70 mb-6">
-                {error?.userMessage || "We're sorry, but something unexpected happened."}
+                {error?.userMessage ||
+                  "We're sorry, but something unexpected happened."}
               </p>
             </div>
-            
+
             <div className="space-y-3">
               <button
                 onClick={this.handleReload}
@@ -113,7 +122,7 @@ export class ErrorBoundary extends React.Component<
               >
                 Reload Page
               </button>
-              
+
               {config.features.enableDevtools && error && (
                 <details className="text-left text-xs text-white/60">
                   <summary className="cursor-pointer hover:text-white/80">
@@ -146,7 +155,7 @@ export class ErrorBoundary extends React.Component<
             </p>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
           {this.retryCount < this.maxRetries && (
             <button
@@ -156,7 +165,7 @@ export class ErrorBoundary extends React.Component<
               Retry ({this.maxRetries - this.retryCount} left)
             </button>
           )}
-          
+
           <button
             onClick={this.handleReload}
             className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded transition-colors"
