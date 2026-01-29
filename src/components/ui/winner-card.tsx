@@ -28,8 +28,14 @@ export function WinnerCard({ gameName, gameImage, amount }: WinnerCardProps) {
       <div className="absolute bottom-2 left-16 flex flex-col gap-2">
         <div className="text-sm font-bold text-white">{gameName}</div>
 
-        <div className="flex items-center gap-2 text-xs font-bold text-white/90">
-          <div className="h-4 w-4 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600" />
+        <div className="flex items-center gap-1 text-xs font-bold text-white/90">
+          <Image
+            src="/icons/sol.svg"
+            alt="SOL"
+            width={14}
+            height={14}
+            className="shrink-0"
+          />
           <span>{amount}</span>
         </div>
       </div>
