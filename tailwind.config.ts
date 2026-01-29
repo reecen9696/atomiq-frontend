@@ -22,6 +22,7 @@ const config: Config = {
       fontFamily: {
         sans: ["DM Sans", "Inter", "sans-serif"],
         aeonik: ["Aeonik", "Inter", "sans-serif"],
+        planar: ["GT Planar", "Inter", "sans-serif"],
       },
       fontWeight: {
         normal: "400",
@@ -31,6 +32,7 @@ const config: Config = {
         sm: "6px",
         md: "12px",
         lg: "16px",
+        xlg: "20px",
       },
       keyframes: {
         "fade-in": {

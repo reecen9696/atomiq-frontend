@@ -2,6 +2,22 @@
 
 @import "tailwindcss";
 
+@font-face {
+  font-family: "GT Planar";
+  src: url("/fonts/GT-Planar-Black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --radius-xsm: 4px;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xlg: 16px;
+}
+
 @keyframes shimmer {
   100% {
     transform: translateX(100%);
@@ -45,12 +61,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;

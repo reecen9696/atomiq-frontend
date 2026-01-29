@@ -26,7 +26,7 @@ export default function RootLayout({
       <body className={dmSans.className}>
         <Providers>
           <TopNavbar />
-          <div className="pt-20 pb-20 sm:pb-0">{children}</div>
+          <div className="pb-20 sm:pb-0">{children}</div>
           <MobileBottomNav />
         </Providers>
       </body>

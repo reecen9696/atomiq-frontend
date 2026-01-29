@@ -24,7 +24,7 @@ export function StatsCarousel({ stats }: StatsCarouselProps) {
       <CarouselContent className="gap-4">
         {stats.map((card) => (
           <CarouselItem key={card.id} className="basis-85">
-            <div className="relative h-40 w-85 shrink-0 overflow-hidden rounded-lg border border-[#1E2938]">
+            <div className="relative h-40 w-85 shrink-0 overflow-hidden rounded-xlg border border-[#1E2938]">
               <Image
                 src="/brand/statcard.png"
                 alt="Stat card"
@@ -43,7 +43,7 @@ export function StatsCarousel({ stats }: StatsCarouselProps) {
                     {card.title}
                   </span>
                 </div>
-                <div className="text-[46px] font-bold text-white leading-tight">
+                <div className="font-planar text-[46px] text-white leading-tight">
                   {card.value}
                 </div>
               </div>

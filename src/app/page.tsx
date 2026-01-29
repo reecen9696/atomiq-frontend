@@ -43,13 +43,13 @@ const statCards: StatCard[] = [
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen w-full justify-center bg-casino-bg">
-      <Container className="pt-16 pb-8">
+    <main className="flex min-h-screen w-full justify-center bg-casino-bg pt-12">
+      <Container className="py-8 space-y-4">
         <RecentWins winners={mockWinners} />
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-row gap-4 h-96">
-            <div className="relative w-2/3 overflow-hidden rounded-md">
+            <div className="relative w-[72.414%] overflow-hidden rounded-xlg">
               <Image
                 src="/brand/banner.png"
                 alt="Banner"
@@ -58,7 +58,44 @@ export default function HomePage() {
                 priority
               />
             </div>
-            <div className="w-1/3 rounded-md bg-[#131216] border border-[#1E2938]"></div>
+            <div className="w-[27.586%] rounded-xlg bg-[#131216] border border-[#1E2938] p-6 flex flex-col">
+              <div className="flex flex-row justify-between mb-4">
+                <p className="text-base font-medium">Recent Blocks</p>
+                <p className="text-sm font-medium text-[#8370E9] cursor-pointer">
+                  See all
+                </p>
+              </div>
+              <div className="flex flex-col h-full justify-between">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div key={i} className="flex flex-row justify-between">
+                    <div className="flex flex-row gap-2 items-center">
+                      <div className="border border-[#1E2938] rounded-full h-10 w-10 flex items-center justify-center shrink-0">
+                        <Image
+                          src="/icons/block.svg"
+                          alt="Block"
+                          width={16}
+                          height={16}
+                        />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          #{323211 - i * 100}
+                        </p>
+                        <p className="text-sm font-medium text-white/60">
+                          43wD...IJ32q
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{i + 1} TX</p>
+                      <p className="text-sm font-medium text-white/60">
+                        {i * 3 + 3} secs ago
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <StatsCarousel stats={statCards} />
