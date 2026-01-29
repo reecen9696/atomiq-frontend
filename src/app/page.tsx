@@ -35,6 +35,12 @@ export default function HomePage() {
             <GamesCarousel games={mockGames} />
           </div>
         </div>
+        <div className="bg-blue-400">
+          <p className="bg-amber-300">Latest Bets</p>
+          <p className="bg-amber-300">High rollers</p>
+          <p className="bg-amber-300">My Bets</p>
+          <p className="bg-amber-300">Lucky Wins</p>
+        </div>
       </Container>
     </main>
   );
