@@ -41,7 +41,7 @@ export function RecentWins({ maxDisplay = MAX_RECENT_WINS }: RecentWinsProps) {
   }
 
   return (
-    <section>
+    <section className="relative">
       <div className="flex gap-4 overflow-x-auto pb-2">
         {winners.map((winner) => (
           <WinnerCard
@@ -52,6 +52,8 @@ export function RecentWins({ maxDisplay = MAX_RECENT_WINS }: RecentWinsProps) {
           />
         ))}
       </div>
+      {/* Gradient fade overlay on right */}
+      <div className="absolute right-0 top-0 bottom-0 w-60 bg-gradient-to-l from-[#0F0E11] to-transparent pointer-events-none" />
     </section>
   );
 }

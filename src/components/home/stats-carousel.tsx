@@ -38,43 +38,47 @@ export function StatsCarousel() {
   }
 
   return (
-    <Carousel
-      opts={{
-        align: "start",
-        loop: false,
-      }}
-      className="w-full"
-    >
-      <CarouselContent className="gap-4">
-        {stats.map((card) => (
-          <CarouselItem key={card.id} className="basis-85">
-            <Card className="relative h-40 w-85 shrink-0 overflow-hidden p-0">
-              <Image
-                src="/brand/statcard.png"
-                alt="Stat card"
-                fill
-                className="object-cover"
-              />
-              <div className="relative z-10 flex flex-col left-12 h-full justify-center">
-                <div className="flex items-center gap-3">
-                  <Image
-                    src={card.icon}
-                    alt={card.title}
-                    width={27}
-                    height={27}
-                  />
-                  <span className="text-[26px] font-medium text-[#9DA3AF]">
-                    {card.title}
-                  </span>
+    <div className="relative">
+      <Carousel
+        opts={{
+          align: "start",
+          loop: false,
+        }}
+        className="w-full"
+      >
+        <CarouselContent className="gap-4">
+          {stats.map((card) => (
+            <CarouselItem key={card.id} className="basis-85">
+              <Card className="relative h-40 w-85 shrink-0 overflow-hidden p-0">
+                <Image
+                  src="/brand/statcard.png"
+                  alt="Stat card"
+                  fill
+                  className="object-cover"
+                />
+                <div className="relative z-10 flex flex-col left-12 h-full justify-center">
+                  <div className="flex items-center gap-3">
+                    <Image
+                      src={card.icon}
+                      alt={card.title}
+                      width={27}
+                      height={27}
+                    />
+                    <span className="text-[26px] font-medium text-[#9DA3AF]">
+                      {card.title}
+                    </span>
+                  </div>
+                  <div className="font-planar text-[46px] text-white leading-tight">
+                    {card.value}
+                  </div>
                 </div>
-                <div className="font-planar text-[46px] text-white leading-tight">
-                  {card.value}
-                </div>
-              </div>
-            </Card>
-          </CarouselItem>
-        ))}
-      </CarouselContent>
-    </Carousel>
+              </Card>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+      </Carousel>
+      {/* Gradient fade overlay on right */}
+      <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#0F0E11] to-transparent pointer-events-none" />
+    </div>
   );
 }
