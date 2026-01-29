@@ -48,8 +48,8 @@ export default function HomePage() {
         <RecentWins winners={mockWinners} />
 
         <div className="flex flex-col gap-4">
-          <div className="flex flex-row gap-4 h-96">
-            <div className="relative w-[72.414%] overflow-hidden rounded-xlg">
+          <div className="flex flex-col lg:flex-row gap-4 lg:h-96">
+            <div className="relative h-64 lg:h-auto lg:w-[72.414%] overflow-hidden rounded-xlg">
               <Image
                 src="/brand/banner.png"
                 alt="Banner"
@@ -58,7 +58,7 @@ export default function HomePage() {
                 priority
               />
             </div>
-            <div className="w-[27.586%] rounded-xlg bg-[#131216] border border-[#1E2938] p-6 flex flex-col">
+            <div className="lg:w-[27.586%] rounded-xlg bg-[#131216] border border-[#1E2938] p-6 flex flex-col">
               <div className="flex flex-row justify-between mb-4">
                 <p className="text-base font-medium">Recent Blocks</p>
                 <p className="text-sm font-medium text-[#8370E9] cursor-pointer">
