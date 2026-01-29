@@ -8,7 +8,7 @@ export interface WinnerCardProps {
 
 export function WinnerCard({ gameName, gameImage, amount }: WinnerCardProps) {
   return (
-    <div className="relative h-20 w-40 shrink-0">
+    <div className="relative h-20 w-40 shrink-0 cursor-pointer transition-all duration-300 ease-out hover:-translate-y-2">
       {/* Back card */}
       <div className="absolute bottom-0 h-14 w-full rounded-sm bg-[#131216]"></div>
 

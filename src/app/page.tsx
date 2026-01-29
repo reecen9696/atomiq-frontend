@@ -2,6 +2,8 @@ import { Container } from "@/components/layout/container";
 import { RecentWins } from "@/components/home/recent-wins";
 import { StatsCarousel } from "@/components/home/stats-carousel";
 import { RecentBlocks } from "@/components/home/recent-blocks";
+import { GamesCarousel } from "@/components/home/games-carousel";
+import { mockGames } from "@/mocks";
 import Image from "next/image";
 
 export default function HomePage() {
@@ -19,6 +21,8 @@ export default function HomePage() {
                   fill
                   className="object-cover"
                   priority
+                  quality={100}
+                  unoptimized
                 />
               </div>
               <div className="lg:w-[27.586%]">
@@ -27,6 +31,9 @@ export default function HomePage() {
             </div>
           </div>
           <StatsCarousel />
+          <div className="pt-8">
+            <GamesCarousel games={mockGames} />
+          </div>
         </div>
       </Container>
     </main>

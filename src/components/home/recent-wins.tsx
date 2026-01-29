@@ -41,7 +41,7 @@ export function RecentWins({ maxDisplay = MAX_RECENT_WINS }: RecentWinsProps) {
   }
 
   return (
-    <section className="relative">
+    <section className="relative overflow-y-visible py-4">
       <div className="flex gap-4 overflow-x-auto pb-2">
         {winners.map((winner) => (
           <WinnerCard
