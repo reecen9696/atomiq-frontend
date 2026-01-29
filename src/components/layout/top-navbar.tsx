@@ -11,7 +11,7 @@ export function TopNavbar() {
           aria-label="Go to dashboard"
         >
           <Image
-            src="/brand/logo.png"
+            src="/brand/logo.svg"
             alt="Atomik"
             width={112}
             height={32}
