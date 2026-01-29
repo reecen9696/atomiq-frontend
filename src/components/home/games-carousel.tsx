@@ -94,7 +94,11 @@ export const GamesCarousel = React.memo<GamesCarouselProps>(({ games }) => {
             aria-label="Jump to first game"
           >
             <Image
-              src="/icons/chevron-left-disabled.svg"
+              src={
+                isBeginning
+                  ? "/icons/chevron-left-disabled.svg"
+                  : "/icons/chevron-left-enabled.svg"
+              }
               alt="First"
               width={16}
               height={16}

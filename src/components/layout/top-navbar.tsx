@@ -1,7 +1,11 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 export function TopNavbar() {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   return (
     <header className="sticky top-0 z-50 flex h-18 w-full items-center justify-between border-b border-[#1E2938] bg-[#0F0E11] px-4 sm:px-6 lg:px-10 2xl:px-12">
       <div className="flex items-center gap-3">
@@ -69,15 +73,69 @@ export function TopNavbar() {
           />
         </div>
 
-        <div className="relative h-10 w-10 overflow-hidden rounded-full">
-          <Image
-            src="/brand/pfp.png"
-            alt="Profile"
-            fill
-            sizes="40px"
-            className="object-cover"
-            priority
-          />
+        <div className="relative">
+          <div
+            className="relative h-10 w-10 overflow-hidden rounded-full cursor-pointer"
+            onMouseEnter={() => setIsDropdownOpen(true)}
+            onMouseLeave={() => setIsDropdownOpen(false)}
+          >
+            <Image
+              src="/brand/pfp.png"
+              alt="Profile"
+              fill
+              sizes="40px"
+              className="object-cover"
+              priority
+            />
+          </div>
+
+          {/* Dropdown */}
+          {isDropdownOpen && (
+            <div
+              className="absolute top-10 right-0 w-58 bg-[#131216] border border-[#1E2938] rounded-md p-4 shadow-lg z-50"
+              onMouseEnter={() => setIsDropdownOpen(true)}
+              onMouseLeave={() => setIsDropdownOpen(false)}
+            >
+              {/* User Info Section */}
+              <div className="bg-[#211F28] p-4 rounded-sm mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-8 h-8 overflow-hidden rounded-full">
+                    <Image
+                      src="/brand/pfp.png"
+                      alt="Profile"
+                      fill
+                      sizes="32px"
+                      className="object-cover"
+                    />
+                  </div>
+                  <span className="text-white text-[14px]">Ww2D....DQd1</span>
+                </div>
+              </div>
+
+              {/* Menu Items */}
+              <div className="space-y-2">
+                <button className="w-full flex items-center gap-3 p-2 rounded-sm hover:bg-[#211F28] transition-colors">
+                  <Image
+                    src="/icons/faq.svg"
+                    alt="FAQ"
+                    width={20}
+                    height={20}
+                  />
+                  <span className="text-white text-[14px]">FAQ</span>
+                </button>
+
+                <button className="w-full flex items-center gap-3 p-2 rounded-sm hover:bg-[#211F28] transition-colors">
+                  <Image
+                    src="/icons/logout.svg"
+                    alt="Logout"
+                    width={20}
+                    height={20}
+                  />
+                  <span className="text-white text-[14px]">Logout</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>
