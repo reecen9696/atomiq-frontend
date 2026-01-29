@@ -21,6 +21,7 @@ export function WinnerCard({ gameName, gameImage, amount }: WinnerCardProps) {
           height={58}
           className="rounded-sm object-cover shadow-xl"
           draggable={false}
+          style={{ width: "auto", height: "auto" }}
         />
       </div>
 
@@ -35,6 +36,7 @@ export function WinnerCard({ gameName, gameImage, amount }: WinnerCardProps) {
             width={14}
             height={14}
             className="shrink-0"
+            style={{ width: "auto", height: "auto" }}
           />
           <span>{amount}</span>
         </div>

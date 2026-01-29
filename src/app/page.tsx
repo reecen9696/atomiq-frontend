@@ -22,7 +22,7 @@ export default function HomePage() {
                   className="object-cover"
                   priority
                   quality={100}
-                  unoptimized
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 72vw, 900px"
                 />
               </div>
               <div className="lg:w-[27.586%]">

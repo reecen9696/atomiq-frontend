@@ -1,23 +1,41 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
+import { config } from "@/config";
+import { handleQueryError } from "@/lib/error-handling";
 import { mockWinners } from "@/mocks";
-import { MAX_RECENT_WINS } from "@/constants";
 
 /**
- * Hook to fetch recent winners
- * Uses mock data until API is implemented
+ * Hook for fetching recent winners
+ * Automatically handles loading, error states, and polling
+ *
+ * @param limit - Maximum number of winners to display
+ * @returns React Query result with winners data
  */
-export function useRecentWins(limit: number = MAX_RECENT_WINS) {
+export function useRecentWins(limit?: number) {
+  const actualLimit = limit ?? config.pagination.limits.winners;
   return useQuery({
-    queryKey: ["winners", "recent", limit],
+    queryKey: ["winners", "recent", actualLimit],
     queryFn: async () => {
-      // TODO: Switch to API call when backend is ready
-      // return api.winners.getRecent(limit);
+      if (config.features.enableMockData) {
+        return mockWinners.slice(0, actualLimit);
+      }
 
-      // Using mock data for now
-      return mockWinners.slice(0, limit);
+      try {
+        const response = await api.winners.getRecent(actualLimit);
+        return response.data;
+      } catch (error) {
+        throw handleQueryError(error);
+      }
     },
-    refetchInterval: 5000, // Refetch every 5 seconds
-    staleTime: 3000,
+    staleTime: config.polling.intervals.winners,
+    refetchInterval: config.polling.intervals.winners,
+    retry: (failureCount, error) => {
+      // Don't retry on validation errors
+      if (error instanceof Error && error.message.includes("validation")) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 }

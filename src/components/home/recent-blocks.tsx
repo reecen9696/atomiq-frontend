@@ -54,7 +54,7 @@ function BlockItem({ block }: { block: Block }) {
     <div className="flex flex-row justify-between">
       <div className="flex flex-row gap-2 items-center">
         <IconContainer>
-          <Image src="/icons/block.svg" alt="Block" width={16} height={16} />
+          <Image src="/icons/block.svg" alt="Block" width={16} height={16} style={{ width: "auto", height: "auto" }} />
         </IconContainer>
         <div>
           <p className="text-sm font-medium">#{block.blockNumber}</p>

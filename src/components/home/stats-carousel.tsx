@@ -49,7 +49,7 @@ export function StatsCarousel() {
         <CarouselContent className="gap-4">
           {stats.map((card) => (
             <CarouselItem key={card.id} className="basis-85">
-              <Card className="relative h-40 w-85 shrink-0 overflow-hidden p-0">
+              <Card className="relative h-40 w-84 shrink-0 overflow-hidden p-0">
                 <Image
                   src="/brand/statcard.png"
                   alt="Stat card"
@@ -57,7 +57,7 @@ export function StatsCarousel() {
                   className="object-cover"
                   priority
                   quality={100}
-                  unoptimized
+                  sizes="(max-width: 768px) 100vw, 340px"
                 />
                 <div className="relative z-10 flex flex-col left-12 h-full justify-center">
                   <div className="flex items-center gap-3">
@@ -66,6 +66,7 @@ export function StatsCarousel() {
                       alt={card.title}
                       width={27}
                       height={27}
+                      style={{ width: "27px", height: "27px" }}
                     />
                     <span className="text-[26px] font-medium text-[#9DA3AF]">
                       {card.title}

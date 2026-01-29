@@ -49,7 +49,7 @@ export function GamesCarousel({ games }: GamesCarouselProps) {
       {/* Header with navigation */}
       <div className="flex justify-between items-center">
         <div className="flex flex-row gap-2 items-center">
-          <Image src="/icons/game.svg" alt="Games" width={24} height={24} />
+          <Image src="/icons/game.svg" alt="Games" width={24} height={24} style={{ width: "auto", height: "auto" }} />
           <p className="text-white font-bold">Atomiq Games</p>
         </div>
         <div className="flex flex-row gap-2">
@@ -64,6 +64,7 @@ export function GamesCarousel({ games }: GamesCarouselProps) {
               alt="First"
               width={16}
               height={16}
+              style={{ width: "auto", height: "auto" }}
             />
           </button>
           <button
@@ -77,6 +78,7 @@ export function GamesCarousel({ games }: GamesCarouselProps) {
               alt="Last"
               width={16}
               height={16}
+              style={{ width: "auto", height: "auto" }}
             />
           </button>
         </div>

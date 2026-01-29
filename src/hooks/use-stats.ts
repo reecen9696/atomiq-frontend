@@ -1,23 +1,39 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
+import { config } from "@/config";
+import { handleQueryError } from "@/lib/error-handling";
 import { mockStatCards } from "@/mocks";
-import { STATS_POLL_INTERVAL } from "@/constants";
 
 /**
- * Hook to fetch current stats
- * Uses mock data until WebSocket is implemented
+ * Hook for fetching current statistics
+ * Automatically handles loading, error states, and polling
+ *
+ * @returns React Query result with stats data
  */
 export function useStats() {
   return useQuery({
-    queryKey: ["stats"],
+    queryKey: ["stats", "current"],
     queryFn: async () => {
-      // TODO: Switch to WebSocket subscription when backend is ready
-      // return api.stats.getCurrent();
+      if (config.features.enableMockData) {
+        return mockStatCards;
+      }
 
-      // Using mock data for now
-      return mockStatCards;
+      try {
+        const response = await api.stats.getCurrent();
+        return response.data;
+      } catch (error) {
+        throw handleQueryError(error);
+      }
     },
-    refetchInterval: STATS_POLL_INTERVAL,
-    staleTime: STATS_POLL_INTERVAL - 1000,
+    staleTime: config.polling.intervals.stats,
+    refetchInterval: config.polling.intervals.stats,
+    retry: (failureCount, error) => {
+      // Be more aggressive with stats polling since it's critical
+      if (error instanceof Error && error.message.includes("timeout")) {
+        return failureCount < 5;
+      }
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
 }

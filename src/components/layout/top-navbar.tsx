@@ -17,6 +17,7 @@ export function TopNavbar() {
             height={32}
             className="block"
             priority
+            style={{ width: "auto", height: "auto" }}
           />
         </Link>
       </div>
@@ -32,6 +33,7 @@ export function TopNavbar() {
             width={20}
             height={20}
             className="opacity-95"
+            style={{ width: "auto", height: "auto" }}
           />
         </div>
 
