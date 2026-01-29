@@ -113,8 +113,13 @@ export function TopNavbar() {
               </div>
 
               {/* Menu Items */}
-              <div className="space-y-2">
-                <button className="w-full flex items-center gap-3 p-2 rounded-sm hover:bg-[#211F28] transition-colors">
+              <div className="">
+                <a 
+                  href="https://explorer.atomiq.network/about"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-white/10 transition-colors"
+                >
                   <Image
                     src="/icons/faq.svg"
                     alt="FAQ"
@@ -122,9 +127,9 @@ export function TopNavbar() {
                     height={20}
                   />
                   <span className="text-white text-[14px]">FAQ</span>
-                </button>
+                </a>
 
-                <button className="w-full flex items-center gap-3 p-2 rounded-sm hover:bg-[#211F28] transition-colors">
+                <button className="w-full flex items-center gap-3 p-2 py-4 rounded-sm hover:bg-[#211F28] transition-colors">
                   <Image
                     src="/icons/logout.svg"
                     alt="Logout"
