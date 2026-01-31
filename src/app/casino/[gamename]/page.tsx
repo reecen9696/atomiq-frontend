@@ -83,12 +83,12 @@ export default function CasinoGamePage() {
             <span className="text-[14px] font-bold text-white/40">Support</span>
             <span className="text-[14px] font-bold text-white/40">X</span>
           </div>
-          <div className="opacity-20">
+          <div className="opacity-5">
             <Image
               src="/brand/logo.svg"
               alt="Atomik"
-              width={70}
-              height={20}
+              width={50}
+              height={15}
               style={{ width: "auto", height: "auto" }}
             />
           </div>

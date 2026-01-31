@@ -4,9 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/auth-store";
+import { PlayTimerModal } from "@/components/wallet/play-timer-modal";
 
 export function TopNavbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isPlayTimerModalOpen, setIsPlayTimerModalOpen] = useState(false);
   const { isConnected, user, isConnecting, disconnect, openWalletModal } =
     useAuthStore();
 
@@ -164,11 +166,30 @@ export function TopNavbar() {
 
                 {/* Menu Items */}
                 <div className="">
+                  <button
+                    onClick={() => {
+                      setIsPlayTimerModalOpen(true);
+                      setIsDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-2 py-3 rounded-sm hover:bg-[#211F28] transition-colors"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      height="20px"
+                      viewBox="0 -960 960 960"
+                      width="20px"
+                      fill="#FFFFFF"
+                    >
+                      <path d="M360-840v-80h240v80H360Zm80 440h80v-240h-80v240Zm40 320q-74 0-139.5-28.5T226-186q-49-49-77.5-114.5T120-440q0-74 28.5-139.5T226-694q49-49 114.5-77.5T480-800q62 0 119 20t107 58l56-56 56 56-56 56q38 50 58 107t20 119q0 74-28.5 139.5T734-186q-49 49-114.5 77.5T480-80Z" />
+                    </svg>
+                    <span className="text-white text-[14px]">Play Session</span>
+                  </button>
+
                   <a
                     href="https://explorer.atomiq.network/about"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-white/10 transition-colors"
+                    className="w-full flex items-center gap-3 p-2 py-3 rounded-sm hover:bg-[#211F28] transition-colors"
                   >
                     <Image
                       src="/icons/faq.svg"
@@ -181,7 +202,7 @@ export function TopNavbar() {
 
                   <button
                     onClick={disconnect}
-                    className="w-full flex items-center gap-3 p-2 py-4 rounded-sm hover:bg-[#211F28] transition-colors"
+                    className="w-full flex items-center gap-3 p-2 py-3 rounded-sm hover:bg-[#211F28] transition-colors"
                   >
                     <Image
                       src="/icons/logout.svg"
@@ -197,6 +218,12 @@ export function TopNavbar() {
           </div>
         </div>
       )}
+
+      {/* Play Timer Modal */}
+      <PlayTimerModal
+        isOpen={isPlayTimerModalOpen}
+        onClose={() => setIsPlayTimerModalOpen(false)}
+      />
     </header>
   );
 }
