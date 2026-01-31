@@ -32,7 +32,7 @@ export const useAuthStore = create<AuthState>()(
           isConnected: true,
           user: { publicKey },
           isConnecting: false,
-          isWalletModalOpen: false,
+          // Don't close modal on connect - let onboarding flow handle it
         }),
       disconnect: () =>
         set({
@@ -51,9 +51,11 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
+      // Skip hydration from localStorage to always start logged out
+      skipHydration: true,
       partialize: (state) => ({
-        isConnected: state.isConnected,
-        user: state.user,
+        isConnected: false, // Never persist connected state
+        user: null, // Never persist user
       }),
     },
   ),

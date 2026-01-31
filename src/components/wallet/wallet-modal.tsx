@@ -1,8 +1,11 @@
 "use client";
 
 import { useAuthStore } from "@/stores/auth-store";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { walletToast, toast } from "@/lib/toast";
 
 type ModalPage = "connect" | "smartVault" | "addFunds" | "createSession";
 
@@ -14,46 +17,169 @@ export function WalletModal() {
     setConnecting,
     isConnecting,
   } = useAuthStore();
+  const {
+    publicKey,
+    connected,
+    connecting,
+    wallet,
+    disconnect: disconnectWallet,
+  } = useWallet();
   const [currentPage, setCurrentPage] = useState<ModalPage>("connect");
   const [amount, setAmount] = useState("");
+  const [vaultCreated, setVaultCreated] = useState(false);
+  const [fundsAdded, setFundsAdded] = useState(false);
+  const prevConnectedRef = useRef(false);
+  const hasShownToastRef = useRef(false);
+
+  // Debug logging for all state changes
+  console.log("🔄 WalletModal render:", {
+    isWalletModalOpen,
+    currentPage,
+    connected,
+    publicKey: publicKey?.toBase58().slice(0, 8),
+    vaultCreated,
+    fundsAdded,
+    prevConnected: prevConnectedRef.current,
+    hasShownToast: hasShownToastRef.current,
+  });
+
+  // Sync wallet adapter state with auth store and handle onboarding progression
+  useEffect(() => {
+    console.log("🚀 useEffect triggered");
+    const wasConnected = prevConnectedRef.current;
+    const isNowConnected = connected && !!publicKey;
+
+    console.log("📊 Connection state:", {
+      wasConnected,
+      isNowConnected,
+      connected,
+      publicKey: publicKey?.toBase58().slice(0, 8),
+      currentPage,
+      vaultCreated,
+      fundsAdded,
+    });
+
+    if (isNowConnected && !wasConnected) {
+      console.log("✅ NEW WALLET CONNECTION DETECTED");
+
+      // Sync with auth store
+      connect(publicKey.toBase58());
+
+      if (wallet && !hasShownToastRef.current) {
+        console.log("📢 Showing wallet connect toast");
+        walletToast.connected(wallet.adapter.name);
+        hasShownToastRef.current = true;
+      }
+
+      // Always go to smartVault first after connection
+      console.log("➡️ Auto-advancing to smartVault page");
+      setCurrentPage("smartVault");
+    } else if (!isNowConnected && wasConnected) {
+      console.log("❌ WALLET DISCONNECTION DETECTED");
+      // Wallet disconnected - reset flow
+      setCurrentPage("connect");
+      setVaultCreated(false);
+      setFundsAdded(false);
+      hasShownToastRef.current = false;
+    } else {
+      console.log("⏸️ No connection state change");
+    }
+
+    prevConnectedRef.current = isNowConnected;
+    console.log(
+      "🔚 useEffect complete, prevConnectedRef set to:",
+      isNowConnected,
+    );
+  }, [connected, publicKey, wallet, connect]);
 
   if (!isWalletModalOpen) return null;
 
-  const handleConnect = async (walletType: string) => {
-    // Show smart vault page instead of connecting immediately
-    setCurrentPage("smartVault");
+  const handleActivateVault = async () => {
+    console.log("🏦 handleActivateVault called");
+    try {
+      setConnecting(true);
+      console.log("⏳ Creating vault...");
+
+      // Simulate vault creation (would call SDK vault.initializeUserVault)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      console.log("✅ Vault created successfully");
+      setVaultCreated(true);
+      toast.success("Vault created", "Your smart vault is ready to use");
+
+      // Auto-advance to add funds
+      console.log("➡️ Auto-advancing to addFunds");
+      setCurrentPage("addFunds");
+    } catch (error) {
+      console.error("❌ Failed to create vault:", error);
+      toast.error("Failed to create vault", (error as Error).message);
+    } finally {
+      setConnecting(false);
+      console.log("🔚 handleActivateVault complete");
+    }
   };
 
-  const handleActivateVault = () => {
-    setCurrentPage("addFunds");
-  };
+  const handleAddFunds = async () => {
+    console.log("💰 handleAddFunds called with amount:", amount);
+    if (!amount || parseFloat(amount) <= 0) {
+      console.log("❌ Invalid amount");
+      toast.warning("Invalid amount", "Please enter a valid amount");
+      return;
+    }
 
-  const handleAddFunds = () => {
-    setCurrentPage("createSession");
+    try {
+      setConnecting(true);
+      console.log("⏳ Adding funds...");
+
+      // Simulate deposit (would call SDK vault.depositSol)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      console.log("✅ Funds added successfully");
+      setFundsAdded(true);
+      toast.success("Funds added", `Deposited ${amount} SOL to your vault`);
+
+      // Auto-advance to session creation
+      console.log("➡️ Auto-advancing to createSession");
+      setCurrentPage("createSession");
+    } catch (error) {
+      console.error("❌ Failed to add funds:", error);
+      toast.error("Failed to add funds", (error as Error).message);
+    } finally {
+      setConnecting(false);
+      console.log("🔚 handleAddFunds complete");
+    }
   };
 
   const handleCreateSession = async () => {
+    console.log("⏰ handleCreateSession called");
     try {
       setConnecting(true);
-      // Simulate session creation
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log("⏳ Creating session...");
 
-      // Mock wallet connection with a fake public key
-      const mockPublicKey = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
-      connect(mockPublicKey);
+      // Simulate session/allowance creation (would call SDK allowance.createAllowance)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      console.log("✅ Session created successfully");
+      toast.success("Session created", "You can now place bets!");
 
       // Close modal and reset
+      console.log("🚪 Closing modal and resetting");
       handleClose();
     } catch (error) {
-      console.error("Failed to create session:", error);
+      console.error("❌ Failed to create session:", error);
+      toast.error("Failed to create session", (error as Error).message);
+    } finally {
       setConnecting(false);
+      console.log("🔚 handleCreateSession complete");
     }
   };
 
   const handleClose = () => {
+    console.log("🚪 handleClose called");
     closeWalletModal();
-    setCurrentPage("connect");
+    setCurrentPage(connected ? "smartVault" : "connect");
     setAmount("");
+    console.log("🔚 Modal closed");
   };
 
   const renderConnectPage = () => (
@@ -77,62 +203,57 @@ export function WalletModal() {
         </button>
       </div>
 
-      {/* Wallet Options */}
-      <div className="space-y-3">
-        <button
-          onClick={() => handleConnect("phantom")}
-          className="w-full flex items-center gap-3 p-4 border border-[#1E2938] hover:border-[#674AE5] hover:bg-white/5 rounded-sm transition-all duration-200"
-        >
-          <div className="w-8 h-8 bg-[#674AE5] rounded-sm flex items-center justify-center">
-            <Image
-              src="/icons/wallet.svg"
-              alt="Phantom"
-              width={16}
-              height={16}
-            />
+      {/* Wallet Connection */}
+      <div className="space-y-4">
+        {!connected ? (
+          <div className="p-4 border border-[#1E2938] rounded-sm">
+            <p className="text-white/80 mb-4 text-sm">
+              Connect your Solana wallet to get started. We support Phantom,
+              Solflare, and other popular wallets.
+            </p>
+            <WalletMultiButton className="!w-full !bg-[#674AE5] hover:!bg-[#8B75F6] !text-white !font-medium !py-3 !px-4 !rounded-sm !transition-colors !duration-200" />
           </div>
-          <div className="text-left">
-            <div className="text-white font-medium">Phantom</div>
-            <div className="text-white/60 text-sm">
-              Connect using Phantom wallet
+        ) : (
+          <div className="p-4 border border-[#1E2938] rounded-sm bg-green-900/20">
+            <div className="flex items-center gap-2 mb-2">
+              <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+                <path
+                  d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm-2 15l-5-5 1.41-1.41L8 12.17l7.59-7.59L17 6l-9 9z"
+                  fill="#10B981"
+                />
+              </svg>
+              <span className="text-green-400 font-medium">
+                Wallet Connected
+              </span>
             </div>
+            <p className="text-white/60 text-sm">
+              {publicKey?.toBase58().slice(0, 4)}...
+              {publicKey?.toBase58().slice(-4)}
+            </p>
           </div>
-        </button>
+        )}
 
-        <button
-          onClick={() => handleConnect("solflare")}
-          className="w-full flex items-center gap-3 p-4 border border-[#1E2938] hover:border-[#674AE5] hover:bg-white/5 rounded-sm transition-all duration-200"
-        >
-          <div className="w-8 h-8 bg-[#674AE5] rounded-md flex items-center justify-center">
-            <Image
-              src="/icons/wallet.svg"
-              alt="Solflare"
-              width={16}
-              height={16}
-            />
+        {/* Features */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-white/60">
+            <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+              <path
+                d="M8 1L10.5 6L16 7L12 11L13 16L8 13.5L3 16L4 11L0 7L5.5 6L8 1Z"
+                fill="#674AE5"
+              />
+            </svg>
+            Secure connection via Solana wallet adapter
           </div>
-          <div className="text-left">
-            <div className="text-white font-medium">Solflare</div>
-            <div className="text-white/60 text-sm">
-              Connect using Solflare wallet
-            </div>
+          <div className="flex items-center gap-2 text-sm text-white/60">
+            <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+              <path
+                d="M8 1L10.5 6L16 7L12 11L13 16L8 13.5L3 16L4 11L0 7L5.5 6L8 1Z"
+                fill="#674AE5"
+              />
+            </svg>
+            Your keys, your crypto - we never have access
           </div>
-        </button>
-
-        <button
-          onClick={() => handleConnect("other")}
-          className="w-full flex items-center gap-3 p-4 border border-[#1E2938] hover:border-[#674AE5] hover:bg-white/5 rounded-sm transition-all duration-200"
-        >
-          <div className="w-8 h-8 bg-[#674AE5] rounded-md flex items-center justify-center">
-            <Image src="/icons/wallet.svg" alt="Other" width={16} height={16} />
-          </div>
-          <div className="text-left">
-            <div className="text-white font-medium">Other Wallet</div>
-            <div className="text-white/60 text-sm">
-              Connect using another wallet
-            </div>
-          </div>
-        </button>
+        </div>
       </div>
 
       {/* Footer */}
@@ -219,7 +340,7 @@ export function WalletModal() {
                 />
               </svg>
             </div>
-            <span className="text-white">No account or KYC required</span>
+            <span className="text-white">Instant on-chain withdrawals</span>
           </div>
         </div>
 
@@ -227,15 +348,17 @@ export function WalletModal() {
         <div className="mt-auto">
           <button
             onClick={handleActivateVault}
-            className="w-full bg-[#674AE5] hover:bg-[#8B75F6] text-white font-medium py-3 px-4 rounded-sm transition-colors duration-200 mb-4"
+            disabled={isConnecting || !connected}
+            className="w-full bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-sm transition-colors duration-200 mb-4"
           >
-            Activate Smart Vault
+            {isConnecting ? "Creating Vault..." : "Activate Smart Vault"}
           </button>
 
           {/* Deposit Message */}
           <p className="text-white/60 text-sm text-center">
-            Deposit some SOL into your Phantom wallet to activate the smart
-            vault.
+            {connected
+              ? "Click to create your smart vault on-chain"
+              : "Connect your wallet first to activate the vault"}
           </p>
         </div>
       </div>
@@ -305,13 +428,16 @@ export function WalletModal() {
         <div className="mt-auto">
           <button
             onClick={handleAddFunds}
-            className="w-full bg-[#674AE5] hover:bg-[#8B75F6] text-white font-medium py-3 px-4 rounded-sm transition-colors duration-200 mb-4"
+            disabled={isConnecting || !amount || parseFloat(amount) <= 0}
+            className="w-full bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-sm transition-colors duration-200 mb-4"
           >
-            Add Funds
+            {isConnecting ? "Adding Funds..." : "Add Funds"}
           </button>
 
-          {/* Blank space to match other cards */}
-          <div className="h-10"></div>
+          {/* Info */}
+          <p className="text-white/60 text-sm text-center">
+            Funds will be deposited from your wallet to your smart vault
+          </p>
         </div>
       </div>
     </>
@@ -340,9 +466,24 @@ export function WalletModal() {
 
       {/* Content */}
       <div className="flex-1 flex flex-col">
-        <p className="text-white/80 mb-6 leading-relaxed">
-          Create a play timer to place bets.
+        <p className="text-white/80 mb-4 leading-relaxed">
+          Create a play session to enable betting. This approves the casino to
+          spend up to a certain amount for your bets.
         </p>
+
+        {/* Session Details */}
+        <div className="bg-[#211F28] p-4 rounded-sm mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-white/60 text-sm">Session Duration</span>
+            <span className="text-white font-medium">1 hour</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-white/60 text-sm">Max Spend Limit</span>
+            <span className="text-white font-medium">
+              {amount || "0.00"} SOL
+            </span>
+          </div>
+        </div>
 
         {/* Renew Play Timer Button */}
         <div className="mt-auto">
@@ -351,8 +492,10 @@ export function WalletModal() {
             disabled={isConnecting}
             className="w-full bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-sm transition-colors duration-200 mb-4"
           >
-            Renew Play Timer
+            {isConnecting ? "Creating Session..." : "Create Play Session"}
           </button>
+
+          {/* Info */}
 
           {/* Blank space to match other cards */}
           <div className="h-10"></div>

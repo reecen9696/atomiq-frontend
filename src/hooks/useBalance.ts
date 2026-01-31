@@ -1,0 +1,68 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useAuthStore } from "@/stores/auth-store";
+
+export function useBalance() {
+  const { connection } = useConnection();
+  const { publicKey } = useWallet();
+  const { updateBalance } = useAuthStore();
+  const [balance, setBalance] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchBalance = useCallback(async () => {
+    if (!publicKey) {
+      setBalance(null);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const lamports = await connection.getBalance(publicKey);
+      const sol = lamports / 1e9;
+      setBalance(sol);
+      updateBalance(sol);
+    } catch (err) {
+      console.error("Failed to fetch balance:", err);
+
+      // Check if it's a 403 or rate limit error
+      const errorMessage = (err as Error).message || "Failed to fetch balance";
+      if (errorMessage.includes("403") || errorMessage.includes("rate limit")) {
+        setError(
+          "RPC endpoint rate limited. Balance will retry automatically.",
+        );
+      } else {
+        setError(errorMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [publicKey, connection, updateBalance]);
+
+  // Fetch balance on mount and when publicKey changes
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
+
+  // Refresh balance every 10 seconds
+  useEffect(() => {
+    if (!publicKey) return;
+
+    const interval = setInterval(() => {
+      fetchBalance();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [publicKey, fetchBalance]);
+
+  return {
+    balance,
+    loading,
+    error,
+    refresh: fetchBalance,
+  };
+}

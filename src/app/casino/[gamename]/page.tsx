@@ -4,6 +4,7 @@ import { Container } from "@/components/layout/container";
 import { GamesCarousel } from "@/components/home/games-carousel";
 import { BetsTable } from "@/components/ui/bets-table";
 import { TabSelector, type TabItem } from "@/components/ui/tab-selector";
+import { CoinflipGame } from "@/components/games/coinflip-game";
 import { mockGames } from "@/mocks";
 import { latestBetsData } from "@/mocks/bets";
 import Image from "next/image";
@@ -31,17 +32,22 @@ export default function CasinoGamePage() {
             className="w-full bg-black/30 rounded-t-md"
             style={{ height: "628px" }}
           >
-            {/* Placeholder for game content */}
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <h2 className="text-white text-2xl font-medium mb-2">
-                  {gamename ? gamename.replace(/-/g, " ") : "Game"}
-                </h2>
-                <p className="text-white/60">
-                  Game interface will be implemented here
-                </p>
+            {/* Render actual game based on gamename */}
+            {gamename === "coinflip" ? (
+              <CoinflipGame />
+            ) : (
+              /* Placeholder for other games */
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <h2 className="text-white text-2xl font-medium mb-2">
+                    {gamename ? gamename.replace(/-/g, " ") : "Game"}
+                  </h2>
+                  <p className="text-white/60">
+                    Game interface will be implemented here
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <div className="bg-[#131216] w-full h-18 mb-3 rounded-b-md flex items-center justify-center">
             <div className="opacity-5">

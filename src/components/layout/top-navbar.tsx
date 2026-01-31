@@ -4,15 +4,25 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useBalance } from "@/hooks/useBalance";
 import { PlayTimerModal } from "@/components/wallet/play-timer-modal";
 import { WalletManageModal } from "@/components/wallet/wallet-manage-modal";
+import { walletToast } from "@/lib/toast";
 
 export function TopNavbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isPlayTimerModalOpen, setIsPlayTimerModalOpen] = useState(false);
   const [isWalletManageModalOpen, setIsWalletManageModalOpen] = useState(false);
-  const { isConnected, user, isConnecting, disconnect, openWalletModal } =
-    useAuthStore();
+  const {
+    isConnected,
+    user,
+    isConnecting,
+    disconnect: authDisconnect,
+    openWalletModal,
+  } = useAuthStore();
+  const { disconnect: walletDisconnect } = useWallet();
+  const { balance, loading: balanceLoading } = useBalance();
 
   // Reset dropdown when connection state changes
   useEffect(() => {
@@ -51,6 +61,18 @@ export function TopNavbar() {
   const closeWalletManageModal = useCallback(() => {
     setIsWalletManageModalOpen(false);
   }, []);
+
+  const handleDisconnect = useCallback(async () => {
+    try {
+      await walletDisconnect();
+      authDisconnect();
+      walletToast.disconnected();
+      setIsDropdownOpen(false);
+    } catch (error) {
+      console.error("Failed to disconnect:", error);
+    }
+  }, [walletDisconnect, authDisconnect]);
+
   return (
     <header className="sticky top-0 z-50 flex h-18 w-full items-center justify-between border-b border-[#1E2938] bg-[#0F0E11] px-4 sm:px-6 lg:px-10 2xl:px-12">
       <div className="flex items-center gap-3">
@@ -86,7 +108,9 @@ export function TopNavbar() {
                   style={{ width: "auto", height: "auto" }}
                 />
                 <span className="text-[14px] font-normal text-white font-['DM_Sans']">
-                  {formatBalance(user?.balance)}
+                  {balanceLoading
+                    ? "..."
+                    : formatBalance(balance ?? user?.balance)}
                 </span>
               </div>
               <Image
@@ -228,7 +252,7 @@ export function TopNavbar() {
                   </a>
 
                   <button
-                    onClick={disconnect}
+                    onClick={handleDisconnect}
                     className="w-full flex items-center gap-3 p-2 py-3 rounded-sm hover:bg-[#211F28] transition-colors"
                   >
                     <Image
