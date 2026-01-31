@@ -19,7 +19,7 @@ const config: Config = {
       // Spacing values
       spacing: {
         "85": "340px", // w-85 for stat cards
-        "300": "1200px", // max-w-300 for container
+        "300": "1280px", // max-w-300 for container
       },
     },
   },

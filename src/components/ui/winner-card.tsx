@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export interface WinnerCardProps {
   gameName: string;
@@ -7,8 +10,17 @@ export interface WinnerCardProps {
 }
 
 export function WinnerCard({ gameName, gameImage, amount }: WinnerCardProps) {
+  const router = useRouter();
+
+  const handleClick = () => {
+    const gameNameForUrl = gameName.toLowerCase().replace(/\s+/g, "-");
+    router.push(`/casino/${gameNameForUrl}`);
+  };
   return (
-    <div className="relative h-20 w-40 shrink-0 cursor-pointer transition-all duration-300 ease-out hover:-translate-y-2">
+    <div
+      onClick={handleClick}
+      className="relative h-20 w-40 shrink-0 cursor-pointer transition-all duration-300 ease-out hover:-translate-y-2"
+    >
       {/* Back card */}
       <div className="absolute bottom-0 h-14 w-full rounded-sm bg-[#131216]"></div>
 
