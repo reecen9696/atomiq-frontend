@@ -24,10 +24,14 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
       <div
         className="bg-[#131216] border border-[#1E2938] rounded-md p-8 w-full max-w-md mx-4"
         style={{ height: "500px" }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -80,8 +84,6 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
             <div className="text-white/40 text-xs mb-1">TIME REMAINING</div>
             <div className="text-white text-2xl font-mono">00:05:32</div>
           </div>
-
-
         </div>
 
         {/* Action Button */}

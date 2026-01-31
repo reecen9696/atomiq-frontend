@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { PlayTimerModal } from "@/components/wallet/play-timer-modal";
+import { WalletManageModal } from "@/components/wallet/wallet-manage-modal";
 
 export function TopNavbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isPlayTimerModalOpen, setIsPlayTimerModalOpen] = useState(false);
+  const [isWalletManageModalOpen, setIsWalletManageModalOpen] = useState(false);
   const { isConnected, user, isConnecting, disconnect, openWalletModal } =
     useAuthStore();
 
@@ -72,7 +74,10 @@ export function TopNavbar() {
             </div>
 
             {/* Wallet Button - Connected State */}
-            <button className="flex items-center gap-1 bg-[#674AE5] hover:bg-[#8B75F6] px-4 py-3 rounded-sm transition-colors duration-200">
+            <button
+              onClick={() => setIsWalletManageModalOpen(true)}
+              className="flex items-center gap-1 bg-[#674AE5] hover:bg-[#8B75F6] px-4 py-3 rounded-sm transition-colors duration-200"
+            >
               <Image
                 src="/icons/wallet.svg"
                 alt="Wallet"
@@ -223,6 +228,12 @@ export function TopNavbar() {
       <PlayTimerModal
         isOpen={isPlayTimerModalOpen}
         onClose={() => setIsPlayTimerModalOpen(false)}
+      />
+
+      {/* Wallet Management Modal */}
+      <WalletManageModal
+        isOpen={isWalletManageModalOpen}
+        onClose={() => setIsWalletManageModalOpen(false)}
       />
     </header>
   );
