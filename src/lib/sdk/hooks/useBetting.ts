@@ -188,7 +188,7 @@ export function useBetting(
         setState((prev) => ({
           ...prev,
           placingBet: false,
-          currentGame: { gameId: result.gameId, choice, amount },
+          currentGame: { gameId: result.game_id, choice, amount },
           gameResult: result,
         }));
 

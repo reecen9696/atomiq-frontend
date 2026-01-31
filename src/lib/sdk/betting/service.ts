@@ -13,12 +13,7 @@ export interface BettingOperations {
     amount: number;
     vaultPda?: string;
     allowancePda?: string;
-  }): Promise<{
-    gameId: string;
-    outcome: "heads" | "tails";
-    won: boolean;
-    amount: number;
-  }>;
+  }): Promise<CoinflipResult>;
 
   // Game result checking
   getGameResult(gameId: string): Promise<CoinflipResult | null>;
@@ -57,18 +52,18 @@ export class AtomikBettingService implements BettingOperations {
     vaultPda?: string;
     allowancePda?: string;
   }) {
-    const { userPublicKey, choice, amount, vaultPda, allowancePda } = params;
+    const { userPublicKey, choice, amount } = params;
 
-    // Use a simplified vault PDA derivation (would normally use actual Solana PDA)
-    const userVaultPda = vaultPda || `vault_${userPublicKey}`;
-
-    // Make API call to place bet
+    // Make API call to place bet using test-ui format
     const response = await this.apiClient.playCoinflip({
+      player_id: userPublicKey,
       choice,
-      amount,
-      userPubkey: userPublicKey,
-      vaultPda: userVaultPda,
-      allowancePda,
+      token: {
+        symbol: "SOL",
+        mint_address: null
+      },
+      bet_amount: amount,
+      wallet_signature: null
     });
 
     if (!response.success || !response.data) {

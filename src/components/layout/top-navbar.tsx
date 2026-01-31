@@ -111,9 +111,7 @@ export function TopNavbar() {
                     style={{ width: "auto", height: "auto" }}
                   />
                   <span className="text-[14px] font-normal text-white font-['DM_Sans']">
-                    {vaultLoading
-                      ? "..."
-                      : formatBalance(vaultBalance)}
+                    {vaultLoading ? "..." : formatBalance(vaultBalance)}
                   </span>
                 </div>
                 <Image

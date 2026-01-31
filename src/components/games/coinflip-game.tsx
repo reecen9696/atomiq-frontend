@@ -40,7 +40,7 @@ export function CoinflipGame() {
 
   // Handle game result animation
   useEffect(() => {
-    if (gameResult && !isFlipping) {
+    if (gameResult && gameResult.status === "complete" && !isFlipping) {
       setIsFlipping(true);
 
       // Show flipping animation for 2 seconds
@@ -48,11 +48,17 @@ export function CoinflipGame() {
         setIsFlipping(false);
         setShowResult(true);
 
+        // Calculate if won based on choice vs outcome
+        const won = gameResult.result?.outcome === selectedSide;
+        const payout = gameResult.result?.payment?.payout_amount || 0;
+        const betAmount = gameResult.result?.payment?.bet_amount || 0;
+        const outcome = gameResult.result?.outcome;
+
         // Show result toast
-        if (gameResult.won) {
-          bettingToast.betWon(gameResult.amount, gameResult.outcome);
+        if (won) {
+          bettingToast.betWon(payout, outcome);
         } else {
-          bettingToast.betLost(gameResult.amount, gameResult.outcome);
+          bettingToast.betLost(betAmount, outcome);
         }
 
         // Reset after 3 seconds
@@ -62,7 +68,7 @@ export function CoinflipGame() {
         }, 3000);
       }, 2000);
     }
-  }, [gameResult, isFlipping, clearCurrentGame]);
+  }, [gameResult, isFlipping, clearCurrentGame, selectedSide]);
 
   const handleBetClick = async () => {
     if (!isConnected) {
@@ -108,9 +114,9 @@ export function CoinflipGame() {
             isFlipping ? "animate-spin" : ""
           }`}
         >
-          {showResult && gameResult ? (
+          {showResult && gameResult && gameResult.status === "complete" && gameResult.result ? (
             <div className="text-4xl font-bold text-white">
-              {gameResult.outcome.toUpperCase()}
+              {gameResult.result.outcome.toUpperCase()}
             </div>
           ) : (
             <div className="text-6xl">🪙</div>
@@ -118,16 +124,16 @@ export function CoinflipGame() {
         </div>
 
         {/* Result Overlay */}
-        {showResult && gameResult && (
+        {showResult && gameResult && gameResult.status === "complete" && gameResult.result && (
           <div
             className={`absolute inset-0 rounded-full flex items-center justify-center ${
-              gameResult.won
+              gameResult.result.outcome === selectedSide
                 ? "bg-green-500/20 border-4 border-green-500"
                 : "bg-red-500/20 border-4 border-red-500"
             }`}
           >
             <div className="text-2xl">
-              {gameResult.won ? "🎉 WIN!" : "😔 LOSS"}
+              {gameResult.result.outcome === selectedSide ? "🎉 WIN!" : "😔 LOSS"}
             </div>
           </div>
         )}

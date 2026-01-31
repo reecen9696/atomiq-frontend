@@ -25,10 +25,10 @@ export function parseVaultAccount(data: Buffer): VaultAccountState {
   if (data.length < 8 + 32 + 32 + 1 + 8 + 8 + 8) {
     throw new Error(`Vault account data too small: ${data.length} bytes`);
   }
-  
+
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   let off = 8;
-  
+
   const owner = readPubkey(data, off);
   off += 32;
   const casino = readPubkey(data, off);
@@ -63,7 +63,7 @@ export function parseCasinoAccount(data: Buffer): CasinoAccountState {
 
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   let off = 8;
-  
+
   const authority = readPubkey(data, off);
   off += 32;
   const processor = readPubkey(data, off);
@@ -107,7 +107,7 @@ export function parseAllowanceAccount(data: Buffer): AllowanceAccountState {
 
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   let off = 8;
-  
+
   const user = readPubkey(data, off);
   off += 32;
   const casino = readPubkey(data, off);
@@ -166,7 +166,7 @@ export function parseAllowanceNonceRegistryAccount(
 
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   let off = 8;
-  
+
   const user = readPubkey(data, off);
   off += 32;
   const casino = readPubkey(data, off);
@@ -218,7 +218,7 @@ export async function buildIxData(
   args?: (Buffer | Uint8Array)[],
 ): Promise<Buffer> {
   const disc = await anchorDiscriminator(ixName);
-  const argBuffers = args?.map(arg => Buffer.from(arg)) || [];
+  const argBuffers = args?.map((arg) => Buffer.from(arg)) || [];
   return Buffer.concat([disc, ...argBuffers]);
 }
 
@@ -261,11 +261,18 @@ export function addPriorityFeeInstructions(
 
   // Add these instructions at the beginning, but preserve memo instructions at position 0
   const firstInstruction = tx.instructions[0];
-  const isMemoInstruction = firstInstruction?.programId.equals(new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'));
-  
+  const isMemoInstruction = firstInstruction?.programId.equals(
+    new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
+  );
+
   if (isMemoInstruction) {
     // Insert priority fee instructions after the memo instruction (at positions 1 and 2)
-    tx.instructions.splice(1, 0, computeUnitInstruction, priorityFeeInstruction);
+    tx.instructions.splice(
+      1,
+      0,
+      computeUnitInstruction,
+      priorityFeeInstruction,
+    );
   } else {
     // No memo instruction, add priority fees at the beginning as usual
     tx.instructions.unshift(computeUnitInstruction, priorityFeeInstruction);

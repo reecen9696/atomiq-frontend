@@ -4,14 +4,14 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import Image from "next/image";
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { walletToast, toast } from "@/lib/toast";
 import { solanaService } from "@/services/solana";
 import { PublicKey } from "@solana/web3.js";
 
 type ModalPage = "connect" | "smartVault" | "addFunds" | "createSession";
 
-export function WalletModal() {
+function WalletModalComponent() {
   const {
     isWalletModalOpen,
     closeWalletModal,
@@ -39,125 +39,100 @@ export function WalletModal() {
   const prevConnectedRef = useRef(false);
   const hasShownToastRef = useRef(false);
 
-  // Debug logging for all state changes
-  console.log("🔄 WalletModal render:", {
-    isWalletModalOpen,
-    currentPage,
-    connected,
-    publicKey: publicKey?.toBase58().slice(0, 8),
-    vaultCreated,
-    fundsAdded,
-    vaultAddress: vaultAddress.slice(0, 8),
-    lastSignature: lastSignature.slice(0, 8),
-    errorMsg,
-    prevConnected: prevConnectedRef.current,
-    hasShownToast: hasShownToastRef.current,
-  });
+  const handleClose = useCallback(() => {
+    closeWalletModal();
+    setCurrentPage("connect"); // Always reset to connect page
+    setAmount("");
+    setVaultCreated(false);
+    setFundsAdded(false);
+    setVaultAddress("");
+    setLastSignature("");
+    setErrorMsg("");
+  }, [closeWalletModal]);
 
   // Function to refresh vault information
-  const refreshVaultInfo = async () => {
+  const refreshVaultInfo = useCallback(async () => {
     if (!publicKey) return;
 
     try {
-      console.log("🔄 Refreshing vault info...");
       const vaultInfo = await solanaService.getUserVaultInfo({
         user: publicKey,
         connection: solanaService.getConnection(),
       });
 
-      console.log("📊 Vault info:", vaultInfo);
-
       if (vaultInfo.exists) {
         setVaultCreated(true);
         setVaultAddress(vaultInfo.address);
-        const vaultBalance = Number(vaultInfo.state?.solBalanceLamports || 0n) / 1e9;
+        const vaultBalance =
+          Number(vaultInfo.state?.solBalanceLamports || 0n) / 1e9;
         updateVaultInfo(vaultInfo.address, vaultBalance);
-        console.log("✅ Vault exists:", vaultInfo.address);
-        console.log("💰 Vault balance:", vaultBalance, "SOL");
       } else {
         setVaultCreated(false);
         setVaultAddress("");
-        console.log("❌ Vault does not exist yet");
       }
     } catch (error) {
-      console.error("❌ Failed to refresh vault info:", error);
+      console.error("Failed to refresh vault info:", error);
     }
-  };
+  }, [publicKey, updateVaultInfo]);
 
-  // Check vault status when wallet connects
+  // Reset to connect page when modal is opened and wallet is not connected
+  useEffect(() => {
+    if (isWalletModalOpen && !connected) {
+      setCurrentPage("connect");
+    }
+  }, [isWalletModalOpen, connected]);
+
+  // Check vault status when wallet connects (separate from main logic)
   useEffect(() => {
     if (connected && publicKey) {
-      console.log("🔍 Checking existing vault status...");
       refreshVaultInfo();
     }
-  }, [connected, publicKey]);
+  }, [connected, publicKey, refreshVaultInfo]);
 
-  // Sync wallet adapter state with auth store and handle onboarding progression
+  // Handle wallet connection state changes
   useEffect(() => {
-    console.log("🚀 useEffect triggered");
     const wasConnected = prevConnectedRef.current;
     const isNowConnected = connected && !!publicKey;
 
-    console.log("📊 Connection state:", {
-      wasConnected,
-      isNowConnected,
-      connected,
-      publicKey: publicKey?.toBase58().slice(0, 8),
-      currentPage,
-      vaultCreated,
-      fundsAdded,
-    });
-
     if (isNowConnected && !wasConnected) {
-      console.log("✅ NEW WALLET CONNECTION DETECTED");
-
-      // Sync with auth store
+      // New connection
       connect(publicKey.toBase58());
 
       if (wallet && !hasShownToastRef.current) {
-        console.log("📢 Showing wallet connect toast");
         walletToast.connected(wallet.adapter.name);
         hasShownToastRef.current = true;
       }
 
-      // Check if we need to skip onboarding based on vault status
-      setTimeout(async () => {
+      // Check vault and handle onboarding flow
+      const timeoutId = setTimeout(async () => {
         try {
-          console.log("🔍 Checking vault existence for onboarding decision...");
           const vaultInfo = await solanaService.getUserVaultInfo({
             user: publicKey,
             connection: solanaService.getConnection(),
           });
 
           if (vaultInfo.exists) {
-            console.log("🏁 Vault exists - skipping onboarding and closing modal");
-            console.log("📍 Existing vault:", vaultInfo.address);
-            console.log("💰 Vault balance:", Number(vaultInfo.state?.solBalanceLamports || 0n) / 1e9, "SOL");
-            
-            // Update local state
+            // User already has vault - close modal
             setVaultCreated(true);
             setVaultAddress(vaultInfo.address);
             const vaultBalance = Number(vaultInfo.state?.solBalanceLamports || 0n) / 1e9;
             updateVaultInfo(vaultInfo.address, vaultBalance);
-            
-            // Close modal - user is already onboarded
             handleClose();
           } else {
-            console.log("❌ No vault found - starting onboarding flow");
+            // Start onboarding flow
             setVaultCreated(false);
             setVaultAddress("");
             setCurrentPage("smartVault");
           }
         } catch (error) {
-          console.error("❌ Failed to check vault existence:", error);
-          // If check fails, proceed with onboarding to be safe
-          console.log("⚠️ Vault check failed - proceeding with onboarding");
+          console.error("Failed to check vault:", error);
           setCurrentPage("smartVault");
         }
       }, 100);
+
+      return () => clearTimeout(timeoutId);
     } else if (!isNowConnected && wasConnected) {
-      console.log("❌ WALLET DISCONNECTION DETECTED");
-      // Wallet disconnected - reset flow
+      // Disconnection
       setCurrentPage("connect");
       setVaultCreated(false);
       setFundsAdded(false);
@@ -165,16 +140,14 @@ export function WalletModal() {
       setLastSignature("");
       setErrorMsg("");
       hasShownToastRef.current = false;
-    } else {
-      console.log("⏸️ No connection state change");
+      
+      if (isWalletModalOpen) {
+        closeWalletModal();
+      }
     }
 
     prevConnectedRef.current = isNowConnected;
-    console.log(
-      "🔚 useEffect complete, prevConnectedRef set to:",
-      isNowConnected,
-    );
-  }, [connected, publicKey, wallet, connect]);
+  }, [connected, publicKey, wallet, connect, updateVaultInfo, handleClose, closeWalletModal, isWalletModalOpen]); // Add back necessary dependencies
 
   if (!isWalletModalOpen) return null;
 
@@ -201,11 +174,14 @@ export function WalletModal() {
       setVaultAddress(vaultPda);
       setVaultCreated(true);
       await refreshVaultInfo(); // Refresh vault state to get latest info
-      
+
       console.log("✅ Vault created successfully!");
       console.log("📍 Vault PDA:", vaultPda);
       console.log("📝 Transaction signature:", signature);
-      console.log("🔍 View on explorer:", solanaService.getExplorerUrl(signature));
+      console.log(
+        "🔍 View on explorer:",
+        solanaService.getExplorerUrl(signature),
+      );
 
       toast.success("Vault created", "Your smart vault is ready to use");
 
@@ -218,7 +194,9 @@ export function WalletModal() {
       // Check if vault was actually created despite the error (Solana deduplication handling)
       if (publicKey) {
         try {
-          const vaultPda = await solanaService.deriveVaultPDA(publicKey.toBase58());
+          const vaultPda = await solanaService.deriveVaultPDA(
+            publicKey.toBase58(),
+          );
           const exists = await solanaService.getAccountExists(vaultPda);
           if (exists) {
             console.log("🔄 Vault was actually created successfully!");
@@ -235,7 +213,8 @@ export function WalletModal() {
         }
       }
 
-      const msg = error instanceof Error ? error.message : "Failed to create vault";
+      const msg =
+        error instanceof Error ? error.message : "Failed to create vault";
       setErrorMsg(msg);
       toast.error("Failed to create vault", msg);
     } finally {
@@ -284,7 +263,10 @@ export function WalletModal() {
       console.log("📍 Vault PDA:", vaultPda);
       console.log("💰 Amount:", deposit, "SOL");
       console.log("📝 Transaction signature:", signature);
-      console.log("🔍 View on explorer:", solanaService.getExplorerUrl(signature));
+      console.log(
+        "🔍 View on explorer:",
+        solanaService.getExplorerUrl(signature),
+      );
 
       toast.success("Funds added", `Deposited ${amount} SOL to your vault`);
 
@@ -296,7 +278,10 @@ export function WalletModal() {
 
       // Check if deposit actually succeeded despite error (Solana deduplication handling)
       const errMsg = error instanceof Error ? error.message : String(error);
-      if (errMsg.includes("already been processed") || errMsg.includes("This transaction has already been processed")) {
+      if (
+        errMsg.includes("already been processed") ||
+        errMsg.includes("This transaction has already been processed")
+      ) {
         console.log("🔄 Checking if deposit actually succeeded...");
         try {
           // Just continue to session creation - deposit likely succeeded
@@ -311,7 +296,8 @@ export function WalletModal() {
         }
       }
 
-      const msg = error instanceof Error ? error.message : "Failed to add funds";
+      const msg =
+        error instanceof Error ? error.message : "Failed to add funds";
       setErrorMsg(msg);
       toast.error("Failed to add funds", msg);
     } finally {
@@ -333,17 +319,18 @@ export function WalletModal() {
       console.log("⏳ Creating betting session allowance on-chain...");
 
       // Create an allowance for 5 SOL that expires in 10000 seconds (same as test-ui defaults)
-      const allowanceAmount = BigInt(5 * 1_000_000_000); // 5 SOL in lamports  
+      const allowanceAmount = BigInt(5 * 1_000_000_000); // 5 SOL in lamports
       const durationSeconds = BigInt(10000); // 10000 seconds
 
-      const { signature, allowancePda } = await solanaService.approveAllowanceSol({
-        user: publicKey,
-        amountLamports: allowanceAmount,
-        durationSeconds,
-        sendTransaction,
-        signTransaction: signTransaction ?? undefined,
-        connection: solanaService.getConnection(),
-      });
+      const { signature, allowancePda } =
+        await solanaService.approveAllowanceSol({
+          user: publicKey,
+          amountLamports: allowanceAmount,
+          durationSeconds,
+          sendTransaction,
+          signTransaction: signTransaction ?? undefined,
+          connection: solanaService.getConnection(),
+        });
 
       setLastSignature(signature);
 
@@ -352,7 +339,10 @@ export function WalletModal() {
       console.log("💰 Amount:", Number(allowanceAmount) / 1e9, "SOL");
       console.log("⏰ Duration:", Number(durationSeconds), "seconds");
       console.log("📝 Transaction signature:", signature);
-      console.log("🔍 View on explorer:", solanaService.getExplorerUrl(signature));
+      console.log(
+        "🔍 View on explorer:",
+        solanaService.getExplorerUrl(signature),
+      );
 
       toast.success("Session created", "You can now place bets!");
 
@@ -362,21 +352,25 @@ export function WalletModal() {
     } catch (error) {
       console.error("❌ Failed to create session:", error);
 
-      // Check if allowance was actually created despite error (Solana deduplication handling)  
+      // Check if allowance was actually created despite error (Solana deduplication handling)
       const errMsg = error instanceof Error ? error.message : String(error);
       if (errMsg.toLowerCase().includes("already been processed")) {
         console.log("🔄 Retrying with skipPreflight: true...");
         try {
-          const { signature, allowancePda } = await solanaService.approveAllowanceSol({
-            user: publicKey,
-            amountLamports: BigInt(5 * 1_000_000_000),
-            durationSeconds: BigInt(10000),
-            sendTransaction: async (tx, connection, options) => {
-              return sendTransaction(tx, connection, { ...options, skipPreflight: true });
-            },
-            signTransaction: signTransaction ?? undefined,
-            connection: solanaService.getConnection(),
-          });
+          const { signature, allowancePda } =
+            await solanaService.approveAllowanceSol({
+              user: publicKey,
+              amountLamports: BigInt(5 * 1_000_000_000),
+              durationSeconds: BigInt(10000),
+              sendTransaction: async (tx, connection, options) => {
+                return sendTransaction(tx, connection, {
+                  ...options,
+                  skipPreflight: true,
+                });
+              },
+              signTransaction: signTransaction ?? undefined,
+              connection: solanaService.getConnection(),
+            });
           console.log("✅ Session created! Signature:", signature);
           setErrorMsg("");
           toast.success("Session created", "You can now place bets!");
@@ -384,14 +378,16 @@ export function WalletModal() {
           return;
         } catch (retryErr) {
           console.error("❌ Retry also failed:", retryErr);
-          
+
           // Check for specific rate limit errors like test-ui
-          const retryErrMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
-          const msg = retryErrMsg.includes('code": 429') ||
-                     retryErrMsg.includes(" 429") ||
-                     retryErrMsg.toLowerCase().includes("too many requests")
-                       ? "RPC rate-limited (429). Public devnet RPC is throttling you — try again in a moment."
-                       : retryErrMsg || "Failed to create session";
+          const retryErrMsg =
+            retryErr instanceof Error ? retryErr.message : String(retryErr);
+          const msg =
+            retryErrMsg.includes('code": 429') ||
+            retryErrMsg.includes(" 429") ||
+            retryErrMsg.toLowerCase().includes("too many requests")
+              ? "RPC rate-limited (429). Public devnet RPC is throttling you — try again in a moment."
+              : retryErrMsg || "Failed to create session";
           setErrorMsg(msg);
           toast.error("Failed to create session", msg);
           return;
@@ -399,41 +395,31 @@ export function WalletModal() {
       }
 
       // Handle user rejected error like test-ui
-      if (errMsg.toLowerCase().includes("user rejected") ||
-          errMsg.toLowerCase().includes("user declined") ||
-          errMsg.toLowerCase().includes("rejected the request") ||
-          errMsg.toLowerCase().includes("request rejected") ||
-          errMsg.toLowerCase().includes("denied")) {
+      if (
+        errMsg.toLowerCase().includes("user rejected") ||
+        errMsg.toLowerCase().includes("user declined") ||
+        errMsg.toLowerCase().includes("rejected the request") ||
+        errMsg.toLowerCase().includes("request rejected") ||
+        errMsg.toLowerCase().includes("denied")
+      ) {
         setErrorMsg("User cancelled allowance approval");
         toast.error("Session cancelled", "User cancelled allowance approval");
         return;
       }
 
       // Check for rate limit errors
-      const msg = errMsg.includes('code": 429') ||
-                 errMsg.includes(" 429") ||
-                 errMsg.toLowerCase().includes("too many requests")
-                   ? "RPC rate-limited (429). Public devnet RPC is throttling you — try again in a moment."
-                   : errMsg || "Failed to create session";
+      const msg =
+        errMsg.includes('code": 429') ||
+        errMsg.includes(" 429") ||
+        errMsg.toLowerCase().includes("too many requests")
+          ? "RPC rate-limited (429). Public devnet RPC is throttling you — try again in a moment."
+          : errMsg || "Failed to create session";
       setErrorMsg(msg);
       toast.error("Failed to create session", msg);
     } finally {
       setConnecting(false);
       console.log("🔚 handleCreateSession complete");
     }
-  };
-
-  const handleClose = () => {
-    console.log("🚪 handleClose called");
-    closeWalletModal();
-    setCurrentPage(connected ? "smartVault" : "connect");
-    setAmount("");
-    setVaultCreated(false);
-    setFundsAdded(false);
-    setVaultAddress("");
-    setLastSignature("");
-    setErrorMsg("");
-    console.log("🔚 Modal closed and state reset");
   };
 
   const renderConnectPage = () => (
@@ -601,20 +587,31 @@ export function WalletModal() {
         {/* Debug Info - Show when vault exists or transactions completed */}
         {(vaultAddress || lastSignature || errorMsg) && (
           <div className="space-y-2 mb-4 p-3 border border-[#1E2938] rounded-sm bg-black/20">
-            <p className="text-white/60 text-xs font-medium uppercase tracking-wide">Transaction Info</p>
+            <p className="text-white/60 text-xs font-medium uppercase tracking-wide">
+              Transaction Info
+            </p>
             {vaultAddress && (
               <div className="space-y-1">
                 <p className="text-white/80 text-xs">Vault Address:</p>
-                <p className="text-green-400 text-xs font-mono break-all">{vaultAddress}</p>
+                <p className="text-green-400 text-xs font-mono break-all">
+                  {vaultAddress}
+                </p>
               </div>
             )}
             {lastSignature && (
               <div className="space-y-1">
                 <p className="text-white/80 text-xs">Last Transaction:</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-blue-400 text-xs font-mono break-all">{lastSignature}</p>
+                  <p className="text-blue-400 text-xs font-mono break-all">
+                    {lastSignature}
+                  </p>
                   <button
-                    onClick={() => window.open(solanaService.getExplorerUrl(lastSignature), '_blank')}
+                    onClick={() =>
+                      window.open(
+                        solanaService.getExplorerUrl(lastSignature),
+                        "_blank",
+                      )
+                    }
                     className="text-blue-400 hover:text-blue-300 text-xs flex-shrink-0"
                   >
                     View ↗
@@ -800,3 +797,6 @@ export function WalletModal() {
     </div>
   );
 }
+
+// Export memoized component to prevent unnecessary re-renders
+export const WalletModal = React.memo(WalletModalComponent);

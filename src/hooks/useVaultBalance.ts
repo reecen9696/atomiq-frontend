@@ -44,7 +44,8 @@ export function useVaultBalance() {
       }
     } catch (err) {
       console.error("Failed to fetch vault balance:", err);
-      const errorMessage = (err as Error).message || "Failed to fetch vault balance";
+      const errorMessage =
+        (err as Error).message || "Failed to fetch vault balance";
       setError(errorMessage);
       setVaultBalance(null);
       setVaultAddress("");

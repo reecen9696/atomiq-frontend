@@ -51,12 +51,14 @@ export const useAuthStore = create<AuthState>()(
         })),
       updateVaultInfo: (vaultAddress: string, vaultBalance: number) =>
         set((state) => ({
-          user: state.user ? { 
-            ...state.user, 
-            vaultAddress, 
-            vaultBalance, 
-            hasVault: true 
-          } : null,
+          user: state.user
+            ? {
+                ...state.user,
+                vaultAddress,
+                vaultBalance,
+                hasVault: true,
+              }
+            : null,
         })),
       setConnecting: (isConnecting: boolean) => set({ isConnecting }),
       openWalletModal: () => set({ isWalletModalOpen: true }),

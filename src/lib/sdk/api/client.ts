@@ -8,20 +8,56 @@ export interface ApiResponse<T = unknown> {
   message?: string;
 }
 
-export interface CoinflipRequest {
-  choice: "heads" | "tails";
-  amount: number;
-  userPubkey: string;
-  vaultPda: string;
-  allowancePda?: string;
+export interface Token {
+  symbol: string;
+  mint_address?: string | null;
 }
 
-export interface CoinflipResult {
-  gameId: string;
-  outcome: "heads" | "tails";
-  won: boolean;
-  amount: number;
-  timestamp: string;
+export interface CoinflipRequest {
+  player_id: string;
+  choice: "heads" | "tails";
+  token: Token;
+  bet_amount: number;
+  wallet_signature?: string | null;
+}
+
+export type CoinflipResult = 
+  | {
+      status: "complete";
+      game_id: string;
+      result: GameResult;
+    }
+  | {
+      status: "pending";
+      game_id: string;
+      message?: string | null;
+    };
+
+export interface GameResult {
+  game_id: string;
+  game_type: string;
+  player: {
+    player_id: string;
+    wallet_signature?: string | null;
+  };
+  payment: {
+    token: Token;
+    bet_amount: number;
+    payout_amount: number;
+    settlement_tx_id?: string | null;
+  };
+  vrf: {
+    vrf_output: string;
+    vrf_proof: string;
+    public_key: string;
+    input_message: string;
+  };
+  outcome: string;
+  timestamp: number;
+  game_type_data: string;
+  player_choice?: string;
+  result_choice?: string;
+  metadata?: unknown;
 }
 
 export interface Settlement {
@@ -122,22 +158,22 @@ export class AtomikApiClient {
   }
 
   /**
-   * Play a coinflip game
+   * Play a coinflip game - using test-ui endpoint
    */
   async playCoinflip(
     request: CoinflipRequest,
   ): Promise<ApiResponse<CoinflipResult>> {
-    return this.request<CoinflipResult>("/api/coinflip", {
+    return this.request<CoinflipResult>("/api/coinflip/play", {
       method: "POST",
       body: JSON.stringify(request),
     });
   }
 
   /**
-   * Get game result by ID
+   * Get game result by ID - using test-ui endpoint
    */
   async getGameResult(gameId: string): Promise<ApiResponse<CoinflipResult>> {
-    return this.request<CoinflipResult>(`/api/games/${gameId}`);
+    return this.request<CoinflipResult>(`/api/game/${encodeURIComponent(gameId)}`);
   }
 
   /**
