@@ -1,6 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import React from "react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 export interface GameCardProps {
   id: string;
@@ -10,9 +13,16 @@ export interface GameCardProps {
 }
 
 export const GameCard = React.memo<GameCardProps>(
-  ({ title, image, className }) => {
+  ({ id, title, image, className }) => {
+    const router = useRouter();
+
+    const handleClick = () => {
+      const gameName = title.toLowerCase().replace(/\s+/g, "-");
+      router.push(`/casino/${gameName}`);
+    };
     return (
       <div
+        onClick={handleClick}
         className={cn(
           "relative h-56 w-40 shrink-0 overflow-hidden rounded-sm bg-casino-card border border-casino-border cursor-pointer transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl",
           className,

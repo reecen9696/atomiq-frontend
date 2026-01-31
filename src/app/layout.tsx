@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { TopNavbar } from "@/components/layout/top-navbar";
+import { WalletModal } from "@/components/wallet/wallet-modal";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -40,6 +41,7 @@ export default function RootLayout({
           <TopNavbar />
           <div className="pb-20 sm:pb-0">{children}</div>
           <MobileBottomNav />
+          <WalletModal />
         </Providers>
       </body>
     </html>
