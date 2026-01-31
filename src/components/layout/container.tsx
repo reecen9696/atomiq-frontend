@@ -24,7 +24,7 @@ export function Container({
     <Comp
       className={cn(
         "mx-auto w-full",
-        width === "default" ? "max-w-6xl" : "max-w-7xl",
+        width === "default" ? "max-w-7xl" : "max-w-7xl",
         padding === "default" ? "px-4 sm:px-6 lg:px-10 2xl:px-12" : "px-0",
         className,
       )}
