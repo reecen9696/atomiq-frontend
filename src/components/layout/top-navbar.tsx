@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { PlayTimerModal } from "@/components/wallet/play-timer-modal";
 import { WalletManageModal } from "@/components/wallet/wallet-manage-modal";
@@ -19,13 +19,38 @@ export function TopNavbar() {
     setIsDropdownOpen(false);
   }, [isConnected]);
 
-  const formatBalance = (balance?: number) => {
+  const formatBalance = useCallback((balance?: number) => {
     return balance ? balance.toFixed(9) : "0.000000000";
-  };
+  }, []);
 
-  const formatAddress = (publicKey: string) => {
+  const formatAddress = useCallback((publicKey: string) => {
     return `${publicKey.slice(0, 4)}....${publicKey.slice(-4)}`;
-  };
+  }, []);
+
+  const handleWalletClick = useCallback(() => {
+    setIsWalletManageModalOpen(true);
+  }, []);
+
+  const handleDropdownEnter = useCallback(() => {
+    setIsDropdownOpen(true);
+  }, []);
+
+  const handleDropdownLeave = useCallback(() => {
+    setIsDropdownOpen(false);
+  }, []);
+
+  const handlePlayTimerClick = useCallback(() => {
+    setIsPlayTimerModalOpen(true);
+    setIsDropdownOpen(false);
+  }, []);
+
+  const closePlayTimerModal = useCallback(() => {
+    setIsPlayTimerModalOpen(false);
+  }, []);
+
+  const closeWalletManageModal = useCallback(() => {
+    setIsWalletManageModalOpen(false);
+  }, []);
   return (
     <header className="sticky top-0 z-50 flex h-18 w-full items-center justify-between border-b border-[#1E2938] bg-[#0F0E11] px-4 sm:px-6 lg:px-10 2xl:px-12">
       <div className="flex items-center gap-3">
@@ -75,7 +100,7 @@ export function TopNavbar() {
 
             {/* Wallet Button - Connected State */}
             <button
-              onClick={() => setIsWalletManageModalOpen(true)}
+              onClick={handleWalletClick}
               className="flex items-center gap-1 bg-[#674AE5] hover:bg-[#8B75F6] px-4 py-3 rounded-sm transition-colors duration-200"
             >
               <Image
@@ -129,8 +154,8 @@ export function TopNavbar() {
           <div className="relative">
             <div
               className="relative h-10 w-10 overflow-hidden rounded-full cursor-pointer"
-              onMouseEnter={() => setIsDropdownOpen(true)}
-              onMouseLeave={() => setIsDropdownOpen(false)}
+              onMouseEnter={handleDropdownEnter}
+              onMouseLeave={handleDropdownLeave}
             >
               <Image
                 src="/brand/pfp.png"
@@ -146,8 +171,8 @@ export function TopNavbar() {
             {isDropdownOpen && (
               <div
                 className="absolute top-10 right-0 w-58 bg-[#131216] border border-[#1E2938] rounded-md p-4 shadow-lg z-50"
-                onMouseEnter={() => setIsDropdownOpen(true)}
-                onMouseLeave={() => setIsDropdownOpen(false)}
+                onMouseEnter={handleDropdownEnter}
+                onMouseLeave={handleDropdownLeave}
               >
                 {/* User Info Section */}
                 <div className="bg-[#211F28] p-4 rounded-sm mb-4">
@@ -172,10 +197,7 @@ export function TopNavbar() {
                 {/* Menu Items */}
                 <div className="">
                   <button
-                    onClick={() => {
-                      setIsPlayTimerModalOpen(true);
-                      setIsDropdownOpen(false);
-                    }}
+                    onClick={handlePlayTimerClick}
                     className="w-full flex items-center gap-3 p-2 py-3 rounded-sm hover:bg-[#211F28] transition-colors"
                   >
                     <svg
@@ -227,13 +249,13 @@ export function TopNavbar() {
       {/* Play Timer Modal */}
       <PlayTimerModal
         isOpen={isPlayTimerModalOpen}
-        onClose={() => setIsPlayTimerModalOpen(false)}
+        onClose={closePlayTimerModal}
       />
 
       {/* Wallet Management Modal */}
       <WalletManageModal
         isOpen={isWalletManageModalOpen}
-        onClose={() => setIsWalletManageModalOpen(false)}
+        onClose={closeWalletManageModal}
       />
     </header>
   );

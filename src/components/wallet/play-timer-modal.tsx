@@ -1,17 +1,19 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 interface PlayTimerModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+const MODAL_HEIGHT = "500px";
+const CLOSE_BUTTON_SVG_PATH = "M6 6l12 12M6 18L18 6";
+
 export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
   const [isExtending, setIsExtending] = useState(false);
 
-  const handleExtendTimer = async () => {
+  const handleExtendTimer = useCallback(async () => {
     setIsExtending(true);
 
     // Simulate API call
@@ -19,18 +21,22 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
 
     setIsExtending(false);
     onClose();
-  };
+  }, [onClose]);
+
+  const handleCloseClick = useCallback(() => {
+    onClose();
+  }, [onClose]);
 
   if (!isOpen) return null;
 
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={onClose}
+      onClick={handleCloseClick}
     >
       <div
         className="bg-[#131216] border border-[#1E2938] rounded-md p-8 w-full max-w-md mx-4"
-        style={{ height: "500px" }}
+        style={{ height: MODAL_HEIGHT }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -39,7 +45,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
             Extend Play Session
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleCloseClick}
             className="text-white/60 hover:text-white transition-colors"
           >
             <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
@@ -48,7 +54,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M6 6l12 12M6 18L18 6"
+                d={CLOSE_BUTTON_SVG_PATH}
               />
             </svg>
           </button>
