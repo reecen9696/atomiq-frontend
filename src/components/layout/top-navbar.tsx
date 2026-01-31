@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useBalance } from "@/hooks/useBalance";
+import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { PlayTimerModal } from "@/components/wallet/play-timer-modal";
 import { WalletManageModal } from "@/components/wallet/wallet-manage-modal";
 import { walletToast } from "@/lib/toast";
@@ -23,13 +24,14 @@ export function TopNavbar() {
   } = useAuthStore();
   const { disconnect: walletDisconnect } = useWallet();
   const { balance, loading: balanceLoading } = useBalance();
+  const { vaultBalance, hasVault, loading: vaultLoading } = useVaultBalance();
 
   // Reset dropdown when connection state changes
   useEffect(() => {
     setIsDropdownOpen(false);
   }, [isConnected]);
 
-  const formatBalance = useCallback((balance?: number) => {
+  const formatBalance = useCallback((balance?: number | null) => {
     return balance ? balance.toFixed(9) : "0.000000000";
   }, []);
 
@@ -97,30 +99,32 @@ export function TopNavbar() {
       <div className="flex items-center gap-3">
         {isConnected ? (
           <>
-            {/* Currency Selector - Only when connected */}
-            <div className="flex items-center justify-between w-[172px] h-[48px] px-3 border border-[#1E2938] hover:border-[#5C41E1] hover:bg-white/10 rounded-sm transition-all duration-200 cursor-pointer">
-              <div className="flex items-center gap-2">
+            {/* Currency Selector - Only when connected AND vault exists */}
+            {hasVault && (
+              <div className="flex items-center justify-between w-[172px] h-[48px] px-3 border border-[#1E2938] hover:border-[#5C41E1] hover:bg-white/10 rounded-sm transition-all duration-200 cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <Image
+                    src="/icons/sol.svg"
+                    alt="SOL"
+                    width={14}
+                    height={14}
+                    style={{ width: "auto", height: "auto" }}
+                  />
+                  <span className="text-[14px] font-normal text-white font-['DM_Sans']">
+                    {vaultLoading
+                      ? "..."
+                      : formatBalance(vaultBalance)}
+                  </span>
+                </div>
                 <Image
-                  src="/icons/sol.svg"
-                  alt="SOL"
-                  width={14}
-                  height={14}
+                  src="/icons/downArrow.svg"
+                  alt="Dropdown"
+                  width={16}
+                  height={16}
                   style={{ width: "auto", height: "auto" }}
                 />
-                <span className="text-[14px] font-normal text-white font-['DM_Sans']">
-                  {balanceLoading
-                    ? "..."
-                    : formatBalance(balance ?? user?.balance)}
-                </span>
               </div>
-              <Image
-                src="/icons/downArrow.svg"
-                alt="Dropdown"
-                width={16}
-                height={16}
-                style={{ width: "auto", height: "auto" }}
-              />
-            </div>
+            )}
 
             {/* Wallet Button - Connected State */}
             <button
@@ -156,8 +160,8 @@ export function TopNavbar() {
         )}
       </div>
 
-      {/* Right Section - Only when connected */}
-      {isConnected && (
+      {/* Right Section - Only when connected AND vault exists */}
+      {isConnected && hasVault && (
         <div className="flex items-center gap-3">
           {/* Crown Icon - Only when connected */}
           <div

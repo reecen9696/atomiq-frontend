@@ -4,6 +4,9 @@ import { persist } from "zustand/middleware";
 interface User {
   publicKey: string;
   balance?: number;
+  vaultAddress?: string;
+  vaultBalance?: number;
+  hasVault?: boolean;
   // Add other user properties as needed
 }
 
@@ -15,6 +18,7 @@ interface AuthState {
   connect: (publicKey: string) => void;
   disconnect: () => void;
   updateBalance: (balance: number) => void;
+  updateVaultInfo: (vaultAddress: string, vaultBalance: number) => void;
   setConnecting: (connecting: boolean) => void;
   openWalletModal: () => void;
   closeWalletModal: () => void;
@@ -44,6 +48,15 @@ export const useAuthStore = create<AuthState>()(
       updateBalance: (balance: number) =>
         set((state) => ({
           user: state.user ? { ...state.user, balance } : null,
+        })),
+      updateVaultInfo: (vaultAddress: string, vaultBalance: number) =>
+        set((state) => ({
+          user: state.user ? { 
+            ...state.user, 
+            vaultAddress, 
+            vaultBalance, 
+            hasVault: true 
+          } : null,
         })),
       setConnecting: (isConnecting: boolean) => set({ isConnecting }),
       openWalletModal: () => set({ isWalletModalOpen: true }),
