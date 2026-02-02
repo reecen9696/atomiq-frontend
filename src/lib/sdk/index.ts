@@ -56,18 +56,27 @@ export {
   type BettingOperations,
 } from "./betting/service";
 
+// Allowance service
+export {
+  AtomikAllowanceService,
+  createAllowanceService,
+  type AllowanceOperations,
+} from "./allowance/service";
+
 /**
  * Main SDK factory that creates all services with shared configuration
  */
 import type { AtomikConfig } from "./env";
 import type { AtomikApiClient } from "./api/client";
 import type { AtomikBettingService } from "./betting/service";
+import type { AtomikAllowanceService } from "./allowance/service";
 import type { AtomikWebSocketManager } from "./websocket/manager";
 
 export interface AtomikSDK {
   config: AtomikConfig;
   api: AtomikApiClient;
   betting: AtomikBettingService;
+  allowance: AtomikAllowanceService;
   websocket: AtomikWebSocketManager;
 }
 
@@ -77,6 +86,7 @@ export interface AtomikSDK {
 import { createAtomikConfig } from "./env";
 import { createApiClient } from "./api/client";
 import { createBettingService } from "./betting/service";
+import { createAllowanceService } from "./allowance/service";
 import { createWebSocketManager } from "./websocket/manager";
 
 export function createAtomikSDK(
@@ -90,12 +100,14 @@ export function createAtomikSDK(
 
   const api = createApiClient(config);
   const betting = createBettingService(config, api);
+  const allowance = createAllowanceService();
   const websocket = createWebSocketManager(config);
 
   return {
     config,
     api,
     betting,
+    allowance,
     websocket,
   };
 }

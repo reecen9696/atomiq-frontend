@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useAllowanceForCasino } from "@/lib/sdk/hooks/useAllowance";
+import { createAllowanceService } from "@/lib/sdk/allowance/service";
+import { toast } from "@/lib/toast";
+import { solanaService } from "@/services/solana";
 
 interface PlayTimerModalProps {
   isOpen: boolean;
@@ -11,17 +16,122 @@ const MODAL_HEIGHT = "500px";
 const CLOSE_BUTTON_SVG_PATH = "M6 6l12 12M6 18L18 6";
 
 export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
-  const [isExtending, setIsExtending] = useState(false);
+  const { publicKey, sendTransaction, signTransaction } = useWallet();
+  const allowanceService = createAllowanceService(
+    solanaService.getConnection(),
+  );
+  const allowanceHook = useAllowanceForCasino(
+    publicKey?.toBase58() || null,
+    allowanceService,
+    sendTransaction,
+    signTransaction || undefined,
+  );
+
+  const [timeRemaining, setTimeRemaining] = useState<string>("--:--:--");
+  const [expiresAt, setExpiresAt] = useState<bigint | null>(null);
+
+  // Fetch the most recent active allowance when modal opens
+  useEffect(() => {
+    if (!isOpen || !publicKey) return;
+
+    const fetchAllowanceInfo = async () => {
+      try {
+        const mostRecent = await allowanceHook.getMostRecentActive();
+        console.log("📊 Most recent allowance:", mostRecent);
+
+        if (mostRecent?.data?.expiresAt) {
+          setExpiresAt(mostRecent.data.expiresAt);
+          console.log(
+            "⏰ Setting expires at:",
+            new Date(Number(mostRecent.data.expiresAt) * 1000).toLocaleString(),
+          );
+        } else {
+          console.warn("⚠️ No active allowance found or missing expiresAt");
+          setExpiresAt(null);
+        }
+      } catch (error) {
+        console.error("❌ Failed to fetch allowance info:", error);
+        setExpiresAt(null);
+      }
+    };
+
+    fetchAllowanceInfo();
+  }, [isOpen, publicKey, allowanceHook]);
+
+  // Update countdown timer every second
+  useEffect(() => {
+    if (!expiresAt) {
+      setTimeRemaining("--:--:--");
+      return;
+    }
+
+    const updateCountdown = () => {
+      const now = Math.floor(Date.now() / 1000);
+      const expirySeconds = Number(expiresAt);
+      const remaining = expirySeconds - now;
+
+      if (remaining <= 0) {
+        setTimeRemaining("00:00:00");
+        return;
+      }
+
+      const hours = Math.floor(remaining / 3600);
+      const minutes = Math.floor((remaining % 3600) / 60);
+      const seconds = remaining % 60;
+
+      setTimeRemaining(
+        `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`,
+      );
+    };
+
+    // Update immediately
+    updateCountdown();
+
+    // Then update every second
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
 
   const handleExtendTimer = useCallback(async () => {
-    setIsExtending(true);
+    if (!publicKey || !sendTransaction) {
+      toast.error(
+        "Wallet not connected",
+        "Please connect your wallet to extend session",
+      );
+      return;
+    }
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      // Extend allowance for another 10000 seconds (same as initial duration)
+      const result = await allowanceHook.extend(10000);
 
-    setIsExtending(false);
-    onClose();
-  }, [onClose]);
+      if (result) {
+        toast.success(
+          "Session extended",
+          "Your play session has been extended successfully",
+        );
+        console.log("🔄 Session extended:", result.signature);
+        console.log("📍 Allowance PDA:", result.allowancePda);
+
+        // Refresh the allowance info to get updated expiry time
+        const mostRecent = await allowanceHook.getMostRecentActive();
+        if (mostRecent?.data?.expiresAt) {
+          setExpiresAt(mostRecent.data.expiresAt);
+        }
+
+        onClose();
+      } else {
+        // Error was already handled in the hook and displayed in toast
+        console.error("Failed to extend session - no result returned");
+      }
+    } catch (error) {
+      console.error("❌ Failed to extend session:", error);
+      const errorMsg =
+        error instanceof Error ? error.message : "Failed to extend session";
+      toast.error("Extension failed", errorMsg);
+    }
+  }, [publicKey, sendTransaction, allowanceHook, onClose]);
 
   const handleCloseClick = useCallback(() => {
     onClose();
@@ -88,7 +198,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
           {/* Timer Display */}
           <div className="bg-[#211F28] rounded-sm p-4 mb-6">
             <div className="text-white/40 text-xs mb-1">TIME REMAINING</div>
-            <div className="text-white text-2xl font-mono">00:05:32</div>
+            <div className="text-white text-2xl font-mono">{timeRemaining}</div>
           </div>
         </div>
 
@@ -96,10 +206,10 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         <div className="mt-auto">
           <button
             onClick={handleExtendTimer}
-            disabled={isExtending}
+            disabled={allowanceHook.extending || !publicKey}
             className="w-full px-6 py-3 bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
           >
-            {isExtending ? "Extending..." : "Extend Session"}
+            {allowanceHook.extending ? "Extending..." : "Extend Session"}
           </button>
         </div>
       </div>

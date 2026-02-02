@@ -114,7 +114,10 @@ export function CoinflipGame() {
             isFlipping ? "animate-spin" : ""
           }`}
         >
-          {showResult && gameResult && gameResult.status === "complete" && gameResult.result ? (
+          {showResult &&
+          gameResult &&
+          gameResult.status === "complete" &&
+          gameResult.result ? (
             <div className="text-4xl font-bold text-white">
               {gameResult.result.outcome.toUpperCase()}
             </div>
@@ -124,19 +127,24 @@ export function CoinflipGame() {
         </div>
 
         {/* Result Overlay */}
-        {showResult && gameResult && gameResult.status === "complete" && gameResult.result && (
-          <div
-            className={`absolute inset-0 rounded-full flex items-center justify-center ${
-              gameResult.result.outcome === selectedSide
-                ? "bg-green-500/20 border-4 border-green-500"
-                : "bg-red-500/20 border-4 border-red-500"
-            }`}
-          >
-            <div className="text-2xl">
-              {gameResult.result.outcome === selectedSide ? "🎉 WIN!" : "😔 LOSS"}
+        {showResult &&
+          gameResult &&
+          gameResult.status === "complete" &&
+          gameResult.result && (
+            <div
+              className={`absolute inset-0 rounded-full flex items-center justify-center ${
+                gameResult.result.outcome === selectedSide
+                  ? "bg-green-500/20 border-4 border-green-500"
+                  : "bg-red-500/20 border-4 border-red-500"
+              }`}
+            >
+              <div className="text-2xl">
+                {gameResult.result.outcome === selectedSide
+                  ? "🎉 WIN!"
+                  : "😔 LOSS"}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
 
       {/* Game Status */}

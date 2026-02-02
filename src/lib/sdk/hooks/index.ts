@@ -2,6 +2,7 @@
 
 export { useBetting } from "./useBetting";
 export { useWebSocket } from "./useWebSocket";
+export { useAllowance, useAllowanceForCasino } from "./useAllowance";
 
 export type {
   UseBettingState,
@@ -16,3 +17,8 @@ export type {
   RecentWin,
   BlockUpdate,
 } from "./useWebSocket";
+export type {
+  UseAllowanceState,
+  UseAllowanceActions,
+  UseAllowanceResult,
+} from "./useAllowance";

@@ -19,9 +19,10 @@ export interface CoinflipRequest {
   token: Token;
   bet_amount: number;
   wallet_signature?: string | null;
+  allowance_pda?: string | null;
 }
 
-export type CoinflipResult = 
+export type CoinflipResult =
   | {
       status: "complete";
       game_id: string;
@@ -173,7 +174,9 @@ export class AtomikApiClient {
    * Get game result by ID - using test-ui endpoint
    */
   async getGameResult(gameId: string): Promise<ApiResponse<CoinflipResult>> {
-    return this.request<CoinflipResult>(`/api/game/${encodeURIComponent(gameId)}`);
+    return this.request<CoinflipResult>(
+      `/api/game/${encodeURIComponent(gameId)}`,
+    );
   }
 
   /**

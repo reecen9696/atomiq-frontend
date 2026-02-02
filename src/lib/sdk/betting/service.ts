@@ -4,6 +4,8 @@ import type {
   CoinflipResult,
   Settlement,
 } from "../api/client";
+import { createAllowanceService } from "../allowance/service";
+import { solanaService } from "@/services/solana";
 
 export interface BettingOperations {
   // Betting operations
@@ -36,6 +38,9 @@ export interface BettingOperations {
 export class AtomikBettingService implements BettingOperations {
   private config: AtomikConfig;
   private apiClient: AtomikApiClient;
+  private allowanceService = createAllowanceService(
+    solanaService.getConnection(),
+  );
 
   constructor(config: AtomikConfig, apiClient: AtomikApiClient) {
     this.config = config;
@@ -54,16 +59,32 @@ export class AtomikBettingService implements BettingOperations {
   }) {
     const { userPublicKey, choice, amount } = params;
 
-    // Make API call to place bet using test-ui format
+    // Try to find most recent active allowance if not provided
+    let allowancePda = params.allowancePda;
+    if (!allowancePda) {
+      try {
+        const recentAllowance =
+          await this.allowanceService.findMostRecentActiveAllowance({
+            userPublicKey,
+            spender: "casino", // This will be resolved to actual casino PDA
+          });
+        allowancePda = recentAllowance?.allowancePda || undefined;
+      } catch (error) {
+        console.warn("Could not find active allowance:", error);
+      }
+    }
+
+    // Make API call to place bet using test-ui format with allowance PDA
     const response = await this.apiClient.playCoinflip({
       player_id: userPublicKey,
       choice,
       token: {
         symbol: "SOL",
-        mint_address: null
+        mint_address: null,
       },
       bet_amount: amount,
-      wallet_signature: null
+      wallet_signature: null,
+      allowance_pda: allowancePda,
     });
 
     if (!response.success || !response.data) {

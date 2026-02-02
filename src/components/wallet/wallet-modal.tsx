@@ -115,7 +115,8 @@ function WalletModalComponent() {
             // User already has vault - close modal
             setVaultCreated(true);
             setVaultAddress(vaultInfo.address);
-            const vaultBalance = Number(vaultInfo.state?.solBalanceLamports || 0n) / 1e9;
+            const vaultBalance =
+              Number(vaultInfo.state?.solBalanceLamports || 0n) / 1e9;
             updateVaultInfo(vaultInfo.address, vaultBalance);
             handleClose();
           } else {
@@ -140,14 +141,23 @@ function WalletModalComponent() {
       setLastSignature("");
       setErrorMsg("");
       hasShownToastRef.current = false;
-      
+
       if (isWalletModalOpen) {
         closeWalletModal();
       }
     }
 
     prevConnectedRef.current = isNowConnected;
-  }, [connected, publicKey, wallet, connect, updateVaultInfo, handleClose, closeWalletModal, isWalletModalOpen]); // Add back necessary dependencies
+  }, [
+    connected,
+    publicKey,
+    wallet,
+    connect,
+    updateVaultInfo,
+    handleClose,
+    closeWalletModal,
+    isWalletModalOpen,
+  ]); // Add back necessary dependencies
 
   if (!isWalletModalOpen) return null;
 

@@ -50,6 +50,11 @@ export function useAtomikBetting() {
   return sdk.betting;
 }
 
+export function useAtomikAllowance() {
+  const sdk = useAtomikSDK();
+  return sdk.allowance;
+}
+
 export function useAtomikWebSocket() {
   const sdk = useAtomikSDK();
   return sdk.websocket;

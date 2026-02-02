@@ -707,7 +707,7 @@ export class SolanaService {
         Buffer.from("allowance"),
         params.user.toBuffer(),
         casinoPk.toBuffer(),
-        Buffer.from(u64ToLeBytes(nonce)),
+        u64ToLeBytes(nonce),
       ],
       this.programId,
     );
