@@ -6,7 +6,6 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useAtomikBetting } from "@/components/providers/sdk-provider";
 import { useBetting } from "@/lib/sdk/hooks";
 import { bettingToast, toast, walletToast } from "@/lib/toast";
-import Image from "next/image";
 
 export function CoinflipGame() {
   const { publicKey } = useWallet();
@@ -27,7 +26,6 @@ export function CoinflipGame() {
   const [selectedSide, setSelectedSide] = useState<"heads" | "tails" | null>(
     null,
   );
-  const [isFlipping, setIsFlipping] = useState(false);
   const [showResult, setShowResult] = useState(false);
 
   // Clear error toast after 5 seconds
@@ -38,37 +36,31 @@ export function CoinflipGame() {
     }
   }, [error, clearError]);
 
-  // Handle game result animation
+  // Handle game result - show instantly, then clear after 3 seconds
   useEffect(() => {
-    if (gameResult && gameResult.status === "complete" && !isFlipping) {
-      setIsFlipping(true);
+    if (gameResult && gameResult.status === "complete" && !showResult) {
+      setShowResult(true);
 
-      // Show flipping animation for 2 seconds
+      // Calculate if won based on API outcome field
+      const won = gameResult.result?.outcome === "win";
+      const payout = gameResult.result?.payment?.payout_amount || 0;
+      const betAmount = gameResult.result?.payment?.bet_amount || 0;
+      const outcome = gameResult.result?.outcome;
+
+      // Show result toast
+      if (won) {
+        bettingToast.betWon(payout, outcome);
+      } else {
+        bettingToast.betLost(betAmount, outcome);
+      }
+
+      // Auto-clear result after 3 seconds to allow rapid betting
       setTimeout(() => {
-        setIsFlipping(false);
-        setShowResult(true);
-
-        // Calculate if won based on choice vs outcome
-        const won = gameResult.result?.outcome === selectedSide;
-        const payout = gameResult.result?.payment?.payout_amount || 0;
-        const betAmount = gameResult.result?.payment?.bet_amount || 0;
-        const outcome = gameResult.result?.outcome;
-
-        // Show result toast
-        if (won) {
-          bettingToast.betWon(payout, outcome);
-        } else {
-          bettingToast.betLost(betAmount, outcome);
-        }
-
-        // Reset after 3 seconds
-        setTimeout(() => {
-          setShowResult(false);
-          clearCurrentGame();
-        }, 3000);
-      }, 2000);
+        setShowResult(false);
+        clearCurrentGame();
+      }, 3000);
     }
-  }, [gameResult, isFlipping, clearCurrentGame, selectedSide]);
+  }, [gameResult, showResult, clearCurrentGame, selectedSide]);
 
   const handleBetClick = async () => {
     if (!isConnected) {
@@ -107,44 +99,31 @@ export function CoinflipGame() {
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-8 gap-6">
-      {/* Coin Display */}
-      <div className="relative w-48 h-48 mb-4">
-        <div
-          className={`w-full h-full rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-2xl transition-transform duration-500 ${
-            isFlipping ? "animate-spin" : ""
-          }`}
-        >
-          {showResult &&
-          gameResult &&
-          gameResult.status === "complete" &&
-          gameResult.result ? (
-            <div className="text-4xl font-bold text-white">
-              {gameResult.result.outcome.toUpperCase()}
-            </div>
-          ) : (
-            <div className="text-6xl">🪙</div>
-          )}
-        </div>
-
-        {/* Result Overlay */}
+      {/* Result Display */}
+      <div className="w-48 h-48 mb-4 flex flex-col items-center justify-center">
         {showResult &&
-          gameResult &&
-          gameResult.status === "complete" &&
-          gameResult.result && (
+        gameResult &&
+        gameResult.status === "complete" &&
+        gameResult.result ? (
+          <div className="text-center">
+            <div className="text-6xl font-bold text-white mb-2">
+              {gameResult.result.outcome === "win" ? "WIN" : "LOSE"}
+            </div>
             <div
-              className={`absolute inset-0 rounded-full flex items-center justify-center ${
-                gameResult.result.outcome === selectedSide
-                  ? "bg-green-500/20 border-4 border-green-500"
-                  : "bg-red-500/20 border-4 border-red-500"
+              className={`text-2xl font-medium ${
+                gameResult.result.outcome === "win"
+                  ? "text-green-400"
+                  : "text-red-400"
               }`}
             >
-              <div className="text-2xl">
-                {gameResult.result.outcome === selectedSide
-                  ? "🎉 WIN!"
-                  : "😔 LOSS"}
-              </div>
+              {gameResult.result.outcome === "win" 
+                ? `+${gameResult.result.payment.payout_amount} SOL`
+                : `-${gameResult.result.payment.bet_amount} SOL`}
             </div>
-          )}
+          </div>
+        ) : (
+          <div className="text-6xl text-white/60">🎲</div>
+        )}
       </div>
 
       {/* Game Status */}
@@ -161,23 +140,21 @@ export function CoinflipGame() {
       <div className="flex gap-4">
         <button
           onClick={() => setSelectedSide("heads")}
-          disabled={placingBet || isFlipping}
           className={`px-8 py-4 rounded-lg font-medium transition-all ${
             selectedSide === "heads"
               ? "bg-[#674AE5] text-white scale-105"
               : "bg-[#1E2938] text-white/80 hover:bg-[#2A3644]"
-          } disabled:opacity-50 disabled:cursor-not-allowed`}
+          }`}
         >
           HEADS
         </button>
         <button
           onClick={() => setSelectedSide("tails")}
-          disabled={placingBet || isFlipping}
           className={`px-8 py-4 rounded-lg font-medium transition-all ${
             selectedSide === "tails"
               ? "bg-[#674AE5] text-white scale-105"
               : "bg-[#1E2938] text-white/80 hover:bg-[#2A3644]"
-          } disabled:opacity-50 disabled:cursor-not-allowed`}
+          }`}
         >
           TAILS
         </button>
@@ -185,7 +162,6 @@ export function CoinflipGame() {
 
       {/* Bet Amount */}
       <div className="w-full max-w-md">
-        <label className="block text-white mb-2">Bet Amount (SOL)</label>
         <input
           type="number"
           value={betAmount}
@@ -193,9 +169,7 @@ export function CoinflipGame() {
           step="0.1"
           min="0.01"
           max="10"
-          disabled={placingBet || isFlipping}
-          className="w-full h-12 px-4 bg-[#1E2938] border border-[#2A3644] text-white rounded-lg focus:border-[#674AE5] outline-none disabled:opacity-50"
-          placeholder="0.1"
+          className="w-full h-12 px-4 bg-[#1E2938] border border-[#2A3644] text-white rounded-lg focus:border-[#674AE5] outline-none"
         />
 
         {/* Quick Bet Buttons */}
@@ -204,8 +178,7 @@ export function CoinflipGame() {
             <button
               key={amount}
               onClick={() => setBetAmount(amount)}
-              disabled={placingBet || isFlipping}
-              className="flex-1 py-2 bg-[#1E2938] hover:bg-[#2A3644] text-white/80 text-sm rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-2 bg-[#1E2938] hover:bg-[#2A3644] text-white/80 text-sm rounded transition-colors"
             >
               {amount}
             </button>
@@ -216,16 +189,12 @@ export function CoinflipGame() {
       {/* Place Bet Button */}
       <button
         onClick={handleBetClick}
-        disabled={placingBet || isFlipping || !selectedSide}
+        disabled={!isConnected && !selectedSide}
         className="w-full max-w-md py-4 bg-[#674AE5] hover:bg-[#8B75F6] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {!isConnected
           ? "Connect Wallet"
-          : placingBet
-            ? "Placing Bet..."
-            : isFlipping
-              ? "Flipping..."
-              : `Bet ${betAmount} SOL on ${selectedSide?.toUpperCase() ?? "..."}`}
+          : `Bet ${betAmount} SOL on ${selectedSide || "..."}`}
       </button>
 
       {/* Game Info */}

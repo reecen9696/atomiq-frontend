@@ -57,21 +57,13 @@ export class AtomikBettingService implements BettingOperations {
     vaultPda?: string;
     allowancePda?: string;
   }) {
-    const { userPublicKey, choice, amount } = params;
+    const { userPublicKey, choice, amount, allowancePda } = params;
 
-    // Try to find most recent active allowance if not provided
-    let allowancePda = params.allowancePda;
+    // NOTE: Removed slow allowance lookup that was causing 3-5 second delay
+    // The allowancePda should be passed from the calling code (wallet modal state)
+    // Backend will validate the allowance and return appropriate error if invalid
     if (!allowancePda) {
-      try {
-        const recentAllowance =
-          await this.allowanceService.findMostRecentActiveAllowance({
-            userPublicKey,
-            spender: "casino", // This will be resolved to actual casino PDA
-          });
-        allowancePda = recentAllowance?.allowancePda || undefined;
-      } catch (error) {
-        console.warn("Could not find active allowance:", error);
-      }
+      console.warn("No allowancePda provided - bet may fail if allowance is required");
     }
 
     // Make API call to place bet using test-ui format with allowance PDA

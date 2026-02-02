@@ -127,7 +127,24 @@ export class AtomikApiClient {
 
       clearTimeout(timeoutId);
 
-      const data = await response.json();
+      // Handle empty responses
+      const text = await response.text();
+      if (!text) {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: Empty response`);
+        }
+        return {
+          success: true,
+          data: null as T,
+        };
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Invalid JSON response: ${text.substring(0, 100)}`);
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -166,6 +183,9 @@ export class AtomikApiClient {
   ): Promise<ApiResponse<CoinflipResult>> {
     return this.request<CoinflipResult>("/api/coinflip/play", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(request),
     });
   }

@@ -91,7 +91,8 @@ export function useBetting(
   useEffect(() => {
     if (userPublicKey) {
       loadRecentGames();
-      refreshPendingSettlements();
+      // NOTE: refreshPendingSettlements() removed - that endpoint is for transaction-processor only
+      // Game results are returned immediately in the coinflip API response
     } else {
       reset();
     }
@@ -192,8 +193,8 @@ export function useBetting(
           gameResult: result,
         }));
 
-        // Refresh recent games and settlements after bet
-        await Promise.all([loadRecentGames(), refreshPendingSettlements()]);
+        // Refresh recent games after bet (pending settlements not needed)
+        await loadRecentGames();
 
         return result;
       } catch (error) {
@@ -206,7 +207,7 @@ export function useBetting(
         return null;
       }
     },
-    [userPublicKey, bettingService, loadRecentGames, refreshPendingSettlements],
+    [userPublicKey, bettingService, loadRecentGames],
   );
 
   const checkGameResult = useCallback(
