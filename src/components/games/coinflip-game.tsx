@@ -1,16 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
-import { useAtomikBetting } from "@/components/providers/sdk-provider";
-import { useBetting } from "@/lib/sdk/hooks";
+import {
+  useAtomikBetting,
+  useAtomikAllowance,
+} from "@/components/providers/sdk-provider";
+import { useBetting, useAllowanceForCasino } from "@/lib/sdk/hooks";
+import type { CoinflipResult } from "@/lib/sdk";
+import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { bettingToast, toast, walletToast } from "@/lib/toast";
 
 export function CoinflipGame() {
   const { publicKey } = useWallet();
-  const { isConnected, openWalletModal } = useAuthStore();
+  const { isConnected, openWalletModal, user, updateVaultInfo } =
+    useAuthStore();
   const bettingService = useAtomikBetting();
+  const allowanceService = useAtomikAllowance();
+  const allowance = useAllowanceForCasino(
+    publicKey?.toBase58() ?? null,
+    allowanceService,
+  );
 
   const {
     placeCoinflipBet,
@@ -36,31 +47,59 @@ export function CoinflipGame() {
     }
   }, [error, clearError]);
 
-  // Handle game result - show instantly, then clear after 3 seconds
-  useEffect(() => {
-    if (gameResult && gameResult.status === "complete" && !showResult) {
-      setShowResult(true);
+  // Centralized bet result processor - handles balance updates atomically
+  const processBetResult = useCallback(
+    (result: CoinflipResult) => {
+      // Type guard: only process complete results
+      if (result.status !== "complete" || !result.result) return;
 
-      // Calculate if won based on API outcome field
-      const won = gameResult.result?.outcome === "win";
-      const payout = gameResult.result?.payment?.payout_amount || 0;
-      const betAmount = gameResult.result?.payment?.bet_amount || 0;
-      const outcome = gameResult.result?.outcome;
+      // ✅ Read fresh user state from store to avoid stale closure
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) return;
 
-      // Show result toast
+      const won = result.result.outcome === "win";
+      const payout = result.result.payment?.payout_amount || 0;
+      const betAmount = result.result.payment?.bet_amount || 0;
+      const outcome = result.result.outcome;
+
+      // Get current balance directly from fresh store state
+      const currentVaultBalance = currentUser.vaultBalance || 0;
+      const vaultAddress = currentUser.vaultAddress || "";
+
       if (won) {
+        // Win: add net profit (payout - original bet)
+        const netProfit = payout - betAmount;
+        const newBalance = currentVaultBalance + netProfit;
+        updateVaultInfo(vaultAddress, newBalance);
         bettingToast.betWon(payout, outcome);
       } else {
+        // Loss: subtract bet amount
+        const newBalance = currentVaultBalance - betAmount;
+        updateVaultInfo(vaultAddress, newBalance);
         bettingToast.betLost(betAmount, outcome);
       }
+    },
+    [updateVaultInfo],
+  );
 
-      // Auto-clear result after 3 seconds to allow rapid betting
-      setTimeout(() => {
-        setShowResult(false);
-        clearCurrentGame();
-      }, 3000);
+  // Handle game result - Process EVERY result for balance updates
+  useEffect(() => {
+    if (gameResult && gameResult.status === "complete") {
+      // ALWAYS process bet result for balance updates (even if display is showing)
+      processBetResult(gameResult);
+
+      // Only update display state if not already showing
+      if (!showResult) {
+        setShowResult(true);
+
+        // Auto-clear result after 3 seconds to allow rapid betting
+        setTimeout(() => {
+          setShowResult(false);
+          clearCurrentGame();
+        }, 3000);
+      }
     }
-  }, [gameResult, showResult, clearCurrentGame, selectedSide]);
+  }, [gameResult, showResult, clearCurrentGame, processBetResult]);
 
   const handleBetClick = async () => {
     if (!isConnected) {
@@ -91,7 +130,17 @@ export function CoinflipGame() {
 
     // Place bet
     const toastId = bettingToast.placingBet(selectedSide, amount);
-    await placeCoinflipBet(selectedSide, amount);
+
+    // Get cached allowancePda from localStorage
+    const cachedSession = allowance?.getCachedPlaySession?.();
+    const allowancePda = cachedSession?.allowancePda;
+
+    await placeCoinflipBet(
+      selectedSide,
+      amount,
+      user?.vaultAddress,
+      allowancePda,
+    );
     toast.dismiss(toastId);
   };
 
@@ -116,7 +165,7 @@ export function CoinflipGame() {
                   : "text-red-400"
               }`}
             >
-              {gameResult.result.outcome === "win" 
+              {gameResult.result.outcome === "win"
                 ? `+${gameResult.result.payment.payout_amount} SOL`
                 : `-${gameResult.result.payment.bet_amount} SOL`}
             </div>

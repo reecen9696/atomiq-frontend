@@ -8,17 +8,15 @@ import { solanaService } from "@/services/solana";
 export function useVaultBalance() {
   const { publicKey } = useWallet();
   const { updateVaultInfo, user } = useAuthStore();
-  const [vaultBalance, setVaultBalance] = useState<number | null>(null);
-  const [vaultAddress, setVaultAddress] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasVault, setHasVault] = useState(false);
 
   const fetchVaultBalance = useCallback(async () => {
     if (!publicKey) {
-      setVaultBalance(null);
-      setVaultAddress("");
-      setHasVault(false);
+      // Clear vault info in auth store when no wallet connected (only if different)
+      if (user?.vaultBalance !== 0 || user?.vaultAddress !== "") {
+        updateVaultInfo("", 0);
+      }
       return;
     }
 
@@ -33,23 +31,28 @@ export function useVaultBalance() {
 
       if (vaultInfo.exists && vaultInfo.state) {
         const balance = Number(vaultInfo.state.solBalanceLamports || 0n) / 1e9;
-        setVaultBalance(balance);
-        setVaultAddress(vaultInfo.address);
-        setHasVault(true);
-        updateVaultInfo(vaultInfo.address, balance);
+        // Only update auth store if balance or address changed
+        if (
+          user?.vaultBalance !== balance ||
+          user?.vaultAddress !== vaultInfo.address
+        ) {
+          updateVaultInfo(vaultInfo.address, balance);
+        }
       } else {
-        setVaultBalance(null);
-        setVaultAddress("");
-        setHasVault(false);
+        // No vault found - clear auth store (only if different)
+        if (user?.vaultBalance !== 0 || user?.vaultAddress !== "") {
+          updateVaultInfo("", 0);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch vault balance:", err);
       const errorMessage =
         (err as Error).message || "Failed to fetch vault balance";
       setError(errorMessage);
-      setVaultBalance(null);
-      setVaultAddress("");
-      setHasVault(false);
+      // Clear vault info on error (only if different)
+      if (user?.vaultBalance !== 0 || user?.vaultAddress !== "") {
+        updateVaultInfo("", 0);
+      }
     } finally {
       setLoading(false);
     }
@@ -60,23 +63,24 @@ export function useVaultBalance() {
     fetchVaultBalance();
   }, [fetchVaultBalance]);
 
-  // Refresh vault balance every 10 seconds
-  useEffect(() => {
-    if (!publicKey) return;
+  // Remove automatic polling - vault balance should only update on page load or manual refresh
 
-    const interval = setInterval(() => {
-      fetchVaultBalance();
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [publicKey, fetchVaultBalance]);
+  // Method to update vault balance - now just updates auth store
+  const updateLocalVaultBalance = useCallback(
+    (newBalance: number) => {
+      const vaultAddress = user?.vaultAddress || "";
+      updateVaultInfo(vaultAddress, newBalance);
+    },
+    [updateVaultInfo, user?.vaultAddress],
+  );
 
   return {
-    vaultBalance: vaultBalance ?? user?.vaultBalance ?? null,
-    vaultAddress: vaultAddress || user?.vaultAddress || "",
-    hasVault: hasVault || user?.hasVault || false,
+    vaultBalance: user?.vaultBalance ?? null,
+    vaultAddress: user?.vaultAddress ?? "",
+    hasVault: user?.hasVault ?? false,
     loading,
     error,
     refresh: fetchVaultBalance,
+    updateLocalVaultBalance,
   };
 }

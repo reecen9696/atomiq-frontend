@@ -48,16 +48,7 @@ export function useBalance() {
     fetchBalance();
   }, [fetchBalance]);
 
-  // Refresh balance every 10 seconds
-  useEffect(() => {
-    if (!publicKey) return;
-
-    const interval = setInterval(() => {
-      fetchBalance();
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [publicKey, fetchBalance]);
+  // Remove automatic polling - balance should only update on page load or manual refresh
 
   return {
     balance,

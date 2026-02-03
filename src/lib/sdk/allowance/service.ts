@@ -97,6 +97,13 @@ export class AtomikAllowanceService implements AllowanceOperations {
   }
 
   /**
+   * Get the connection instance
+   */
+  getConnection(): Connection {
+    return this.connection;
+  }
+
+  /**
    * Derive allowance PDA with nonce using existing PDA derivation logic
    */
   async deriveAllowancePDA(params: {

@@ -9,6 +9,64 @@ import type { SendTransactionOptions } from "@solana/wallet-adapter-base";
 import type { AtomikAllowanceService } from "../allowance/service";
 import type { AllowanceAccountState } from "@/services/solana/types";
 
+// Simple cache for allowance PDA - balance tracked in auth store
+export interface PlaySessionData {
+  allowancePda: string;
+  expiresAt: number; // Unix timestamp
+  nonce: number;
+}
+
+// localStorage utilities
+const PLAY_SESSION_STORAGE_KEY = "atomik:playSession";
+
+function getPlaySessionStorageKey(userPublicKey: string): string {
+  return `${PLAY_SESSION_STORAGE_KEY}:${userPublicKey}`;
+}
+
+function savePlaySessionToStorage(
+  userPublicKey: string,
+  sessionData: PlaySessionData,
+): void {
+  if (!userPublicKey) return;
+
+  try {
+    const key = getPlaySessionStorageKey(userPublicKey);
+    localStorage.setItem(key, JSON.stringify(sessionData));
+  } catch (error) {
+    console.warn("Unable to save play session to localStorage:", error);
+  }
+}
+
+function loadPlaySessionFromStorage(
+  userPublicKey: string,
+): PlaySessionData | null {
+  if (!userPublicKey) return null;
+
+  try {
+    const key = getPlaySessionStorageKey(userPublicKey);
+    const stored = localStorage.getItem(key);
+    if (!stored) return null;
+
+    return JSON.parse(stored) as PlaySessionData;
+  } catch (error) {
+    console.warn("Unable to load play session from localStorage:", error);
+    return null;
+  }
+}
+
+function isPlaySessionValid(sessionData: PlaySessionData | null): boolean {
+  if (!sessionData) return false;
+
+  // Check if session has expired
+  const now = Math.floor(Date.now() / 1000);
+
+  if (sessionData.expiresAt <= now) {
+    return false;
+  }
+
+  return true;
+}
+
 type SendTransactionFn = (
   transaction: Transaction | VersionedTransaction,
   connection: Connection,
@@ -58,6 +116,15 @@ export interface UseAllowanceActions {
   refreshAllowances: (spender: string) => Promise<void>;
   getNextNonce: (spender: string) => Promise<number>;
   findMostRecentActive: (spender: string) => Promise<{
+    allowancePda: string;
+    nonce: number;
+    data: AllowanceAccountState;
+  } | null>;
+
+  // localStorage-based operations
+  getCachedPlaySession: () => PlaySessionData | null;
+  savePlaySessionData: (data: PlaySessionData) => void;
+  getMostRecentActiveFromCache: () => Promise<{
     allowancePda: string;
     nonce: number;
     data: AllowanceAccountState;
@@ -164,6 +231,62 @@ export function useAllowance(
     [userPublicKey, allowanceService],
   );
 
+  // localStorage-based methods
+  const getCachedPlaySession = useCallback((): PlaySessionData | null => {
+    if (!userPublicKey) return null;
+    const cached = loadPlaySessionFromStorage(userPublicKey);
+    return isPlaySessionValid(cached) ? cached : null;
+  }, [userPublicKey]);
+
+  const savePlaySessionData = useCallback(
+    (data: PlaySessionData) => {
+      if (!userPublicKey) return;
+      savePlaySessionToStorage(userPublicKey, data);
+    },
+    [userPublicKey],
+  );
+
+  const getMostRecentActiveFromCache = useCallback(async () => {
+    if (!userPublicKey) return null;
+
+    // Try localStorage first
+    const cached = getCachedPlaySession();
+    if (cached) {
+      try {
+        // Verify the cached allowance is still active on-chain
+        const allowanceInfo = await allowanceService.getAllowanceInfo(
+          cached.allowancePda,
+          allowanceService.getConnection(),
+        );
+
+        if (
+          allowanceInfo.accountExists &&
+          allowanceInfo.allowanceData &&
+          !allowanceInfo.allowanceData.revoked
+        ) {
+          return {
+            allowancePda: cached.allowancePda,
+            nonce: cached.nonce,
+            data: allowanceInfo.allowanceData,
+          };
+        }
+      } catch (error) {
+        console.log(
+          "⚠️ Error verifying cached allowance, falling back to scan:",
+          error,
+        );
+      }
+    }
+
+    // Fallback to expensive scan
+    return findMostRecentActive(userPublicKey || "casino");
+  }, [
+    userPublicKey,
+    getCachedPlaySession,
+    allowanceService,
+    findMostRecentActive,
+  ]);
+
   const approve = useCallback(
     async (
       spender: string,
@@ -205,6 +328,25 @@ export function useAllowance(
           lastAllowancePda: result.allowancePda,
         }));
 
+        // Get the allowance info and cache it for instant display
+        try {
+          const allowanceInfo = await allowanceService.getAllowanceInfo(
+            result.allowancePda,
+            allowanceService.getConnection(),
+          );
+
+          if (allowanceInfo.accountExists && allowanceInfo.allowanceData) {
+            const playSessionData: PlaySessionData = {
+              allowancePda: result.allowancePda,
+              expiresAt: Number(allowanceInfo.allowanceData.expiresAt),
+              nonce: 0, // This will be updated when we have nonce info
+            };
+            savePlaySessionData(playSessionData);
+          }
+        } catch (cacheError) {
+          console.warn("⚠️ Could not cache play session data:", cacheError);
+        }
+
         // Refresh allowances after approval
         await refreshAllowances(spender);
 
@@ -224,6 +366,7 @@ export function useAllowance(
       signTransaction,
       allowanceService,
       refreshAllowances,
+      savePlaySessionData,
     ],
   );
 
@@ -266,6 +409,25 @@ export function useAllowance(
           lastAllowancePda: result.allowancePda,
         }));
 
+        // Get the updated allowance info and cache it
+        try {
+          const allowanceInfo = await allowanceService.getAllowanceInfo(
+            result.allowancePda,
+            allowanceService.getConnection(),
+          );
+
+          if (allowanceInfo.accountExists && allowanceInfo.allowanceData) {
+            const playSessionData: PlaySessionData = {
+              allowancePda: result.allowancePda,
+              expiresAt: Number(allowanceInfo.allowanceData.expiresAt),
+              nonce: 0, // This will be updated when we have nonce info
+            };
+            savePlaySessionData(playSessionData);
+          }
+        } catch (cacheError) {
+          console.warn("⚠️ Could not cache play session data:", cacheError);
+        }
+
         // Refresh allowances after extension
         await refreshAllowances(spender);
 
@@ -285,6 +447,7 @@ export function useAllowance(
       signTransaction,
       allowanceService,
       refreshAllowances,
+      savePlaySessionData,
     ],
   );
 
@@ -357,6 +520,9 @@ export function useAllowance(
     refreshAllowances,
     getNextNonce,
     findMostRecentActive,
+    getCachedPlaySession,
+    savePlaySessionData,
+    getMostRecentActiveFromCache,
     clearError,
     reset,
   };
@@ -411,8 +577,13 @@ export function useAllowanceForCasino(
   );
 
   const getMostRecentCasinoAllowance = useCallback(
-    () => allowanceHook.findMostRecentActive(spender),
-    [allowanceHook.findMostRecentActive, spender],
+    () => allowanceHook.getMostRecentActiveFromCache(),
+    [allowanceHook.getMostRecentActiveFromCache],
+  );
+
+  const getCachedPlaySessionForCasino = useCallback(
+    () => allowanceHook.getCachedPlaySession(),
+    [allowanceHook.getCachedPlaySession],
   );
 
   return {
@@ -422,5 +593,6 @@ export function useAllowanceForCasino(
     extend: extendForCasino,
     refresh: refreshForCasino,
     getMostRecentActive: getMostRecentCasinoAllowance,
+    getCachedPlaySession: getCachedPlaySessionForCasino,
   };
 }
