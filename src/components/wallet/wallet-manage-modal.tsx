@@ -2,6 +2,12 @@
 
 import Image from "next/image";
 import { useState, useCallback } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useAuthStore } from "@/stores/auth-store";
+import { useBalance } from "@/hooks/useBalance";
+import { useVaultBalance } from "@/hooks/useVaultBalance";
+import { solanaService } from "@/services/solana";
+import { toast } from "@/lib/toast";
 
 interface WalletManageModalProps {
   isOpen: boolean;
@@ -10,27 +16,112 @@ interface WalletManageModalProps {
 
 type ActionType = "deposit" | "withdraw";
 
-const MODAL_HEIGHT = "500px";
+const MODAL_HEIGHT = "600px";
 const CLOSE_BUTTON_SVG_PATH = "M6 6l12 12M6 18L18 6";
-const MAX_BALANCE = "2.547839201";
 
 export function WalletManageModal({ isOpen, onClose }: WalletManageModalProps) {
   const [activeAction, setActiveAction] = useState<ActionType>("deposit");
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const { publicKey, sendTransaction, signTransaction } = useWallet();
+  const { setConnecting } = useAuthStore();
+  const {
+    balance: walletBalance,
+    loading: walletLoading,
+    refresh: refreshWallet,
+  } = useBalance();
+  const {
+    vaultBalance,
+    hasVault,
+    loading: vaultLoading,
+    refresh: refreshVault,
+  } = useVaultBalance();
+
   const handleAction = useCallback(async () => {
-    if (!amount || parseFloat(amount) <= 0) return;
+    if (!amount || parseFloat(amount) <= 0 || !publicKey || !sendTransaction) {
+      toast.error("Invalid amount", "Please enter a valid amount");
+      return;
+    }
+
+    const amountNum = parseFloat(amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      toast.error("Invalid amount", "Please enter a valid amount");
+      return;
+    }
 
     setIsProcessing(true);
+    setConnecting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      if (activeAction === "deposit") {
+        // Deposit SOL from wallet to vault
+        const amountLamports = BigInt(Math.floor(amountNum * 1_000_000_000));
 
-    setIsProcessing(false);
-    setAmount("");
-    onClose();
-  }, [amount, onClose]);
+        const { signature } = await solanaService.depositSol({
+          user: publicKey,
+          amountLamports,
+          sendTransaction,
+          signTransaction: signTransaction ?? undefined,
+          connection: solanaService.getConnection(),
+        });
+
+        console.log("✅ Deposit successful!", signature);
+        toast.success(
+          "Deposit successful",
+          `Deposited ${amount} SOL to your vault`,
+        );
+      } else {
+        // Withdraw SOL from vault to wallet
+        const amountLamports = BigInt(Math.floor(amountNum * 1_000_000_000));
+
+        const { signature } = await solanaService.withdrawSol({
+          user: publicKey,
+          amountLamports,
+          sendTransaction,
+          signTransaction: signTransaction ?? undefined,
+          connection: solanaService.getConnection(),
+        });
+
+        console.log("✅ Withdrawal successful!", signature);
+        toast.success(
+          "Withdrawal successful",
+          `Withdrew ${amount} SOL to your wallet`,
+        );
+      }
+
+      // Refresh balances
+      await Promise.all([refreshWallet(), refreshVault()]);
+
+      setAmount("");
+      onClose();
+    } catch (error) {
+      console.error(`❌ ${activeAction} failed:`, error);
+
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (
+        errorMsg.toLowerCase().includes("user rejected") ||
+        errorMsg.toLowerCase().includes("user declined")
+      ) {
+        toast.error(`${activeAction} cancelled`, "User cancelled transaction");
+      } else {
+        toast.error(`${activeAction} failed`, errorMsg);
+      }
+    } finally {
+      setIsProcessing(false);
+      setConnecting(false);
+    }
+  }, [
+    amount,
+    activeAction,
+    publicKey,
+    sendTransaction,
+    signTransaction,
+    setConnecting,
+    refreshWallet,
+    refreshVault,
+    onClose,
+  ]);
 
   const handleCloseClick = useCallback(() => {
     onClose();
@@ -44,8 +135,10 @@ export function WalletManageModal({ isOpen, onClose }: WalletManageModalProps) {
   );
 
   const handleMaxClick = useCallback(() => {
-    setAmount(MAX_BALANCE);
-  }, []);
+    const maxBalance =
+      activeAction === "deposit" ? walletBalance || 0 : vaultBalance || 0;
+    setAmount(maxBalance.toFixed(9));
+  }, [activeAction, walletBalance, vaultBalance]);
 
   const handleDepositClick = useCallback(() => {
     setActiveAction("deposit");
@@ -87,12 +180,41 @@ export function WalletManageModal({ isOpen, onClose }: WalletManageModalProps) {
         </div>
 
         {/* Balance Display */}
-        <div className="bg-[#211F28] rounded-sm p-4 mb-6">
-          <div className="text-white/40 text-xs mb-1">CURRENT BALANCE</div>
-          <div className="flex items-center gap-2">
-            <Image src="/icons/sol.svg" alt="SOL" width={20} height={20} />
-            <span className="text-white text-2xl font-mono">{MAX_BALANCE}</span>
+        <div className="space-y-4 mb-6">
+          {/* Wallet Balance */}
+          <div className="bg-[#211F28] rounded-sm p-4">
+            <div className="text-white/40 text-xs mb-1">WALLET BALANCE</div>
+            <div className="flex items-center gap-2">
+              <Image src="/icons/sol.svg" alt="SOL" width={20} height={20} />
+              <span className="text-white text-xl font-mono">
+                {walletLoading ? "..." : (walletBalance || 0).toFixed(9)}
+              </span>
+            </div>
           </div>
+
+          {/* Vault Balance */}
+          {hasVault && (
+            <div className="bg-[#211F28] rounded-sm p-4">
+              <div className="text-white/40 text-xs mb-1">VAULT BALANCE</div>
+              <div className="flex items-center gap-2">
+                <Image src="/icons/sol.svg" alt="SOL" width={20} height={20} />
+                <span className="text-white text-xl font-mono">
+                  {vaultLoading ? "..." : (vaultBalance || 0).toFixed(9)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {!hasVault && (
+            <div className="bg-[#211F28] rounded-sm p-4 border border-yellow-700/30">
+              <div className="text-yellow-400 text-xs mb-1">
+                VAULT NOT CREATED
+              </div>
+              <div className="text-white/60 text-sm">
+                Create a vault to start depositing funds
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Tabs */}
@@ -147,8 +269,8 @@ export function WalletManageModal({ isOpen, onClose }: WalletManageModalProps) {
         <div className="text-center mb-8">
           <p className="text-white/60 text-sm">
             {activeAction === "deposit"
-              ? "Add SOL to your gaming balance from your wallet"
-              : "Withdraw SOL from your gaming balance to your wallet"}
+              ? "Transfer SOL from your wallet to your vault for gaming"
+              : "Withdraw SOL from your vault back to your wallet"}
           </p>
         </div>
 
@@ -156,12 +278,20 @@ export function WalletManageModal({ isOpen, onClose }: WalletManageModalProps) {
         <div className="mt-auto">
           <button
             onClick={handleAction}
-            disabled={isProcessing || !amount || parseFloat(amount) <= 0}
+            disabled={
+              isProcessing ||
+              !amount ||
+              parseFloat(amount) <= 0 ||
+              !publicKey ||
+              (activeAction === "deposit" && !hasVault)
+            }
             className="w-full px-6 py-3 bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
           >
             {isProcessing
               ? `${activeAction === "deposit" ? "Depositing" : "Withdrawing"}...`
-              : `${activeAction === "deposit" ? "Deposit" : "Withdraw"} ${amount || "0"} SOL`}
+              : !hasVault && activeAction === "deposit"
+                ? "Create Vault First"
+                : `${activeAction === "deposit" ? "Deposit" : "Withdraw"} ${amount || "0"} SOL`}
           </button>
         </div>
       </div>

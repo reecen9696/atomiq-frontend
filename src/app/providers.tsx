@@ -3,6 +3,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
+import dynamic from "next/dynamic";
+import { SDKProvider } from "@/components/providers/sdk-provider";
+
+// Import WalletProvider dynamically with SSR disabled
+const WalletProvider = dynamic(
+  () =>
+    import("@/components/providers/wallet-provider").then(
+      (mod) => mod.WalletProvider,
+    ),
+  { ssr: false },
+);
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -20,8 +31,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
-      <ReactQueryDevtools initialIsOpen={false} />
+      <SDKProvider>
+        <WalletProvider>
+          {children}
+          <ReactQueryDevtools initialIsOpen={false} />
+        </WalletProvider>
+      </SDKProvider>
     </QueryClientProvider>
   );
 }

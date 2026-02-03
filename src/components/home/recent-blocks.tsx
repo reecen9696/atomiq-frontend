@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { IconContainer } from "@/components/ui/icon-container";
 import { useRecentBlocks } from "@/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LiveStatusIndicator } from "@/components/ui/live-status-indicator";
 import type { Block } from "@/mocks/blocks";
 
 interface RecentBlocksProps {
@@ -12,7 +13,23 @@ interface RecentBlocksProps {
 }
 
 export function RecentBlocks({ limit = 5 }: RecentBlocksProps) {
-  const { data: blocks, isLoading, error } = useRecentBlocks(limit);
+  const {
+    data: blocks,
+    isLoading,
+    error,
+    isLive,
+    isConnecting,
+  } = useRecentBlocks(limit);
+
+  // Add debugging to see what data we're getting
+  console.log("🔍 RecentBlocks component render:", {
+    blocks,
+    blocksLength: blocks?.length,
+    isLoading,
+    error: error?.message,
+    isLive,
+    isConnecting,
+  });
 
   if (error) {
     return (
@@ -27,7 +44,9 @@ export function RecentBlocks({ limit = 5 }: RecentBlocksProps) {
   return (
     <Card className="h-full flex flex-col p-6">
       <CardHeader className="flex-row justify-between items-center mb-4 ">
-        <CardTitle>Recent Blocks</CardTitle>
+        <div className="flex items-center gap-3">
+          <CardTitle>Recent Blocks</CardTitle>
+        </div>
         <a
           href="https://explorer.atomiq.network/"
           target="_blank"
@@ -42,7 +61,14 @@ export function RecentBlocks({ limit = 5 }: RecentBlocksProps) {
         {isLoading ? (
           <BlocksSkeleton count={limit} />
         ) : blocks && blocks.length > 0 ? (
-          blocks.map((block) => <BlockItem key={block.id} block={block} />)
+          blocks.map((block, index) => (
+            <BlockItem
+              key={block.id}
+              block={block}
+              isNew={isLive && index === 0}
+              isLive={isLive || false}
+            />
+          ))
         ) : (
           <p className="text-sm text-white/60 text-center">No blocks found</p>
         )}
@@ -54,7 +80,15 @@ export function RecentBlocks({ limit = 5 }: RecentBlocksProps) {
 /**
  * Individual block item component
  */
-function BlockItem({ block }: { block: Block }) {
+function BlockItem({
+  block,
+  isNew = false,
+  isLive = false,
+}: {
+  block: Block;
+  isNew?: boolean;
+  isLive?: boolean;
+}) {
   return (
     <div className="flex flex-row justify-between">
       <div className="flex flex-row gap-2 items-center">
