@@ -310,6 +310,45 @@ export class AtomikAllowanceService implements AllowanceOperations {
   }
 
   /**
+   * Fast allowance lookup using localStorage (matches test-ui approach)
+   * This is much faster than scanning all possible nonces
+   */
+  async findCachedActiveAllowance(params: {
+    userPublicKey: string;
+    connection?: Connection;
+  }): Promise<{
+    allowancePda: string;
+    data: AllowanceAccountState;
+  } | null> {
+    const { userPublicKey, connection = this.connection } = params;
+
+    try {
+      // Use same localStorage key as test-ui
+      const key = `atomik:lastAllowancePda:${userPublicKey}`;
+      const savedPda = localStorage.getItem(key);
+
+      if (!savedPda || savedPda.length < 20) {
+        return null;
+      }
+
+      // Check this specific allowance directly (very fast)
+      const info = await this.getAllowanceInfo(savedPda, connection);
+      
+      if (info.accountExists && info.allowanceData && !info.allowanceData.revoked) {
+        return {
+          allowancePda: savedPda,
+          data: info.allowanceData,
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.warn("Failed to check cached allowance:", error);
+      return null;
+    }
+  }
+
+  /**
    * Find active allowances for a user/spender pair
    */
   async findActiveAllowances(params: {

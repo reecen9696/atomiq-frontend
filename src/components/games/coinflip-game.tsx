@@ -11,6 +11,8 @@ import { useBetting, useAllowanceForCasino } from "@/lib/sdk/hooks";
 import type { CoinflipResult } from "@/lib/sdk";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { bettingToast, toast, walletToast } from "@/lib/toast";
+import { useBetTrackingStore } from "@/stores/bet-tracking-store";
+import { useSettlementErrors } from "@/hooks/useSettlementErrors";
 
 export function CoinflipGame() {
   const { publicKey } = useWallet();
@@ -22,6 +24,11 @@ export function CoinflipGame() {
     publicKey?.toBase58() ?? null,
     allowanceService,
   );
+
+  const { addPendingBet, updateBetTransactionId, removePendingBet } = useBetTrackingStore();
+  
+  // Initialize settlement error handling
+  useSettlementErrors();
 
   const {
     placeCoinflipBet,
@@ -78,8 +85,19 @@ export function CoinflipGame() {
         updateVaultInfo(vaultAddress, newBalance);
         bettingToast.betLost(betAmount, outcome);
       }
+
+      // Remove from pending bets on successful settlement
+      if (result.game_id) {
+        const pendingBets = useBetTrackingStore.getState().pendingBets;
+        for (const [gameId, bet] of pendingBets.entries()) {
+          if (bet.transactionId && result.game_id.includes(bet.transactionId.toString())) {
+            removePendingBet(gameId);
+            break;
+          }
+        }
+      }
     },
-    [updateVaultInfo],
+    [updateVaultInfo, removePendingBet],
   );
 
   // Handle game result - Process EVERY result for balance updates
@@ -128,20 +146,44 @@ export function CoinflipGame() {
       return;
     }
 
+    // Create unique game ID
+    const gameId = `${Date.now()}-${selectedSide}-${amount}`;
+    
+    // Track the pending bet
+    addPendingBet({
+      gameId,
+      amount,
+      choice: selectedSide,
+      timestamp: Date.now(),
+      playerAddress: publicKey!.toBase58(),
+    });
+
     // Place bet
     const toastId = bettingToast.placingBet(selectedSide, amount);
-
-    // Get cached allowancePda from localStorage
-    const cachedSession = allowance?.getCachedPlaySession?.();
-    const allowancePda = cachedSession?.allowancePda;
-
-    await placeCoinflipBet(
-      selectedSide,
-      amount,
-      user?.vaultAddress,
-      allowancePda,
-    );
-    toast.dismiss(toastId);
+    
+    try {
+      // Get cached allowancePda from localStorage
+      const cachedSession = allowance?.getCachedPlaySession?.();
+      const allowancePda = cachedSession?.allowancePda;
+      
+      const result = await placeCoinflipBet(selectedSide, amount, user?.vaultAddress, allowancePda);
+      
+      // Update with transaction ID if available
+      if (result?.game_id) {
+        // Try to extract transaction ID from game_id or store game_id as reference
+        const possibleTransactionId = parseInt(result.game_id.replace('tx-', ''), 10);
+        if (!isNaN(possibleTransactionId)) {
+          updateBetTransactionId(gameId, possibleTransactionId);
+        }
+      }
+      
+    } catch (error) {
+      // Remove pending bet on error
+      removePendingBet(gameId);
+      throw error;
+    } finally {
+      toast.dismiss(toastId);
+    }
   };
 
   const quickBetAmounts = ["0.1", "0.5", "1.0", "5.0"];

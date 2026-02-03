@@ -38,10 +38,24 @@ export interface BlockUpdateMessage extends WebSocketMessage {
   };
 }
 
+export interface SettlementFailedMessage {
+  type: "settlement_failed";
+  transaction_id: number;
+  player_address: string;
+  game_type: string;
+  bet_amount: number;
+  token: string;
+  error_message: string;
+  retry_count: number;
+  is_permanent: boolean;
+  timestamp: number;
+}
+
 export type AtomikWebSocketMessage =
   | CasinoStatsMessage
   | RecentWinMessage
-  | BlockUpdateMessage;
+  | BlockUpdateMessage
+  | SettlementFailedMessage;
 
 type MessageHandler<T = unknown> = (data: T) => void;
 type ErrorHandler = (error: Event) => void;
@@ -84,9 +98,16 @@ export class WebSocketConnection {
 
         this.ws.onmessage = (event) => {
           try {
-            const message: WebSocketMessage = JSON.parse(event.data);
+            const message = JSON.parse(event.data);
+            
+            // Filter out heartbeat messages from console logs
+            if (message.type !== "heartbeat") {
+              console.log("📨 WebSocket message:", message.type, message);
+            }
+            
+            // Handle flat message structure from backend (not nested with data property)
             const handlers = this.messageHandlers.get(message.type) || [];
-            handlers.forEach((handler) => handler(message.data));
+            handlers.forEach((handler) => handler(message));
           } catch (error) {
             console.error("Failed to parse WebSocket message:", error);
           }
@@ -243,14 +264,29 @@ export class AtomikWebSocketManager {
   /**
    * Connect to live casino data streams
    */
-  async connectToCasinoStreams(): Promise<WebSocketConnection> {
+  async connectToCasinoStreams(walletAddress?: string): Promise<WebSocketConnection> {
     const wsConfig = getWebSocketConfig(this.config);
     if (!wsConfig.enabled) {
       throw new Error("WebSocket connections are disabled in configuration");
     }
 
-    const baseUrl = this.getDefaultWebSocketUrl() + "/ws";
-    const connection = this.getConnection("casino-stream", baseUrl);
+    // Build query parameters for settlement notifications
+    const params = new URLSearchParams();
+    params.append('casino', 'true');
+    params.append('blocks', 'true');
+    
+    // Add settlement parameters when wallet address is provided
+    if (walletAddress) {
+      params.append('settlements', 'true');
+      params.append('wallet_address', walletAddress);
+    }
+
+    const baseUrl = this.getDefaultWebSocketUrl() + `/ws?${params.toString()}`;
+    console.log("🔌 WebSocket URL:", baseUrl);
+    console.log("📊 Settlement notifications enabled:", !!walletAddress);
+    
+    const connectionName = walletAddress ? `casino-stream-${walletAddress}` : "casino-stream";
+    const connection = this.getConnection(connectionName, baseUrl);
 
     if (!connection.isConnected && !connection.isConnecting) {
       await connection.connect();

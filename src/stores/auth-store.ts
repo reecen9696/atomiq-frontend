@@ -19,6 +19,7 @@ interface AuthState {
   disconnect: () => void;
   updateBalance: (balance: number) => void;
   updateVaultInfo: (vaultAddress: string, vaultBalance: number) => void;
+  revertBetAmount: (amount: number) => void;
   setConnecting: (connecting: boolean) => void;
   openWalletModal: () => void;
   closeWalletModal: () => void;
@@ -57,6 +58,15 @@ export const useAuthStore = create<AuthState>()(
                 vaultAddress,
                 vaultBalance,
                 hasVault: true,
+              }
+            : null,
+        })),
+      revertBetAmount: (amount: number) =>
+        set((state) => ({
+          user: state.user
+            ? {
+                ...state.user,
+                vaultBalance: (state.user.vaultBalance || 0) - amount,
               }
             : null,
         })),

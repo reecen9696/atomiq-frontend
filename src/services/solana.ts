@@ -133,7 +133,7 @@ async function confirmSignatureRobust(
   // TransactionExpiredBlockheightExceededError under slow RPC / backoff.
   // For UX, polling signature statuses is more reliable.
   const timeoutMs = opts?.timeoutMs ?? 60_000;
-  const pollIntervalMs = opts?.pollIntervalMs ?? 1_250;
+  const pollIntervalMs = opts?.pollIntervalMs ?? 2_500; // Increased from 1_250ms to 2_500ms for better performance
 
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {

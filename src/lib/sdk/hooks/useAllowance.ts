@@ -249,40 +249,40 @@ export function useAllowance(
   const getMostRecentActiveFromCache = useCallback(async () => {
     if (!userPublicKey) return null;
 
-    // Try localStorage first
-    const cached = getCachedPlaySession();
-    if (cached) {
-      try {
-        // Verify the cached allowance is still active on-chain
-        const allowanceInfo = await allowanceService.getAllowanceInfo(
-          cached.allowancePda,
-          allowanceService.getConnection(),
-        );
+    try {
+      // Use fast localStorage-based lookup like test-ui
+      const result = await allowanceService.findCachedActiveAllowance({
+        userPublicKey,
+      });
 
-        if (
-          allowanceInfo.accountExists &&
-          allowanceInfo.allowanceData &&
-          !allowanceInfo.allowanceData.revoked
-        ) {
-          return {
-            allowancePda: cached.allowancePda,
-            nonce: cached.nonce,
-            data: allowanceInfo.allowanceData,
-          };
-        }
-      } catch (error) {
-        console.log(
-          "⚠️ Error verifying cached allowance, falling back to scan:",
-          error,
-        );
+      if (result) {
+        // Cache the session data for consistency
+        const sessionData: PlaySessionData = {
+          allowancePda: result.allowancePda,
+          expiresAt: Number(result.data.expiresAt),
+          nonce: 0, // We don't need exact nonce for session validation
+        };
+
+        savePlaySessionToStorage(userPublicKey, sessionData);
+
+        return {
+          allowancePda: result.allowancePda,
+          nonce: 0,
+          data: result.data,
+        };
       }
+    } catch (error) {
+      console.log(
+        "⚠️ Error checking cached allowance:",
+        error,
+      );
     }
 
-    // Fallback to expensive scan
-    return findMostRecentActive(userPublicKey || "casino");
+    // Only use expensive scan as last resort
+    console.log("📡 No cached allowance found, using scan as fallback");
+    return findMostRecentActive("casino");
   }, [
     userPublicKey,
-    getCachedPlaySession,
     allowanceService,
     findMostRecentActive,
   ]);
@@ -327,6 +327,15 @@ export function useAllowance(
           lastSignature: result.signature,
           lastAllowancePda: result.allowancePda,
         }));
+
+        // Save to localStorage immediately for fast lookup (like test-ui)
+        try {
+          const key = `atomik:lastAllowancePda:${userPublicKey}`;
+          localStorage.setItem(key, result.allowancePda);
+          console.log("✅ Saved allowance PDA to localStorage:", result.allowancePda);
+        } catch (storageError) {
+          console.warn("Unable to save allowance PDA to localStorage:", storageError);
+        }
 
         // Get the allowance info and cache it for instant display
         try {

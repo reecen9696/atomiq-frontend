@@ -133,6 +133,32 @@ export const bettingToast = {
       "Your balance has been updated",
     );
   },
+
+  /**
+   * Show toast when settlement fails
+   */
+  settlementFailed: (amount: number, errorMessage: string, isPermanent: boolean) => {
+    const title = isPermanent 
+      ? "❌ Settlement failed permanently" 
+      : "⚠️ Settlement failed (retrying)";
+    const description = `Reverted ${amount} SOL bet. ${errorMessage}`;
+    
+    if (isPermanent) {
+      return toast.error(title, description);
+    } else {
+      return toast.warning(title, description);
+    }
+  },
+
+  /**
+   * Show toast when settlement error is resolved
+   */
+  settlementRetrySucceeded: (amount: number) => {
+    return toast.success(
+      "✅ Settlement retry succeeded",
+      `${amount} SOL bet processed successfully`
+    );
+  },
 };
 
 /**

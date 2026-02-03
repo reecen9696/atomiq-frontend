@@ -25,10 +25,10 @@ export const config = {
   polling: {
     defaultInterval: 5000, // 5 seconds
     intervals: {
-      stats: 5000,
-      winners: 5000,
-      blocks: 3000,
-      games: 10000,
+      stats: 30000,     // 30s - reduced from 8s to match test-ui behavior
+      winners: 30000,   // 30s - reduced from 8s to match test-ui behavior  
+      blocks: 15000,    // 15s - reduced from 5s
+      games: 60000,     // 60s - reduced from 15s for less frequent polling
     },
   },
 
