@@ -333,8 +333,12 @@ export class AtomikAllowanceService implements AllowanceOperations {
 
       // Check this specific allowance directly (very fast)
       const info = await this.getAllowanceInfo(savedPda, connection);
-      
-      if (info.accountExists && info.allowanceData && !info.allowanceData.revoked) {
+
+      if (
+        info.accountExists &&
+        info.allowanceData &&
+        !info.allowanceData.revoked
+      ) {
         return {
           allowancePda: savedPda,
           data: info.allowanceData,

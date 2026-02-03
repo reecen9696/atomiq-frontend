@@ -25,8 +25,9 @@ export function CoinflipGame() {
     allowanceService,
   );
 
-  const { addPendingBet, updateBetTransactionId, removePendingBet } = useBetTrackingStore();
-  
+  const { addPendingBet, updateBetTransactionId, removePendingBet } =
+    useBetTrackingStore();
+
   // Initialize settlement error handling
   useSettlementErrors();
 
@@ -90,7 +91,10 @@ export function CoinflipGame() {
       if (result.game_id) {
         const pendingBets = useBetTrackingStore.getState().pendingBets;
         for (const [gameId, bet] of pendingBets.entries()) {
-          if (bet.transactionId && result.game_id.includes(bet.transactionId.toString())) {
+          if (
+            bet.transactionId &&
+            result.game_id.includes(bet.transactionId.toString())
+          ) {
             removePendingBet(gameId);
             break;
           }
@@ -148,7 +152,7 @@ export function CoinflipGame() {
 
     // Create unique game ID
     const gameId = `${Date.now()}-${selectedSide}-${amount}`;
-    
+
     // Track the pending bet
     addPendingBet({
       gameId,
@@ -160,23 +164,30 @@ export function CoinflipGame() {
 
     // Place bet
     const toastId = bettingToast.placingBet(selectedSide, amount);
-    
+
     try {
       // Get cached allowancePda from localStorage
       const cachedSession = allowance?.getCachedPlaySession?.();
       const allowancePda = cachedSession?.allowancePda;
-      
-      const result = await placeCoinflipBet(selectedSide, amount, user?.vaultAddress, allowancePda);
-      
+
+      const result = await placeCoinflipBet(
+        selectedSide,
+        amount,
+        user?.vaultAddress,
+        allowancePda,
+      );
+
       // Update with transaction ID if available
       if (result?.game_id) {
         // Try to extract transaction ID from game_id or store game_id as reference
-        const possibleTransactionId = parseInt(result.game_id.replace('tx-', ''), 10);
+        const possibleTransactionId = parseInt(
+          result.game_id.replace("tx-", ""),
+          10,
+        );
         if (!isNaN(possibleTransactionId)) {
           updateBetTransactionId(gameId, possibleTransactionId);
         }
       }
-      
     } catch (error) {
       // Remove pending bet on error
       removePendingBet(gameId);

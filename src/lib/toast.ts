@@ -137,12 +137,16 @@ export const bettingToast = {
   /**
    * Show toast when settlement fails
    */
-  settlementFailed: (amount: number, errorMessage: string, isPermanent: boolean) => {
-    const title = isPermanent 
-      ? "❌ Settlement failed permanently" 
+  settlementFailed: (
+    amount: number,
+    errorMessage: string,
+    isPermanent: boolean,
+  ) => {
+    const title = isPermanent
+      ? "❌ Settlement failed permanently"
       : "⚠️ Settlement failed (retrying)";
     const description = `Reverted ${amount} SOL bet. ${errorMessage}`;
-    
+
     if (isPermanent) {
       return toast.error(title, description);
     } else {
@@ -156,7 +160,7 @@ export const bettingToast = {
   settlementRetrySucceeded: (amount: number) => {
     return toast.success(
       "✅ Settlement retry succeeded",
-      `${amount} SOL bet processed successfully`
+      `${amount} SOL bet processed successfully`,
     );
   },
 };

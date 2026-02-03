@@ -17,7 +17,10 @@ function getOptionalEnvVar(key: string, defaultValue: string): string {
 
 export const env = {
   // API Configuration
-  apiUrl: getOptionalEnvVar("NEXT_PUBLIC_API_URL", "http://localhost:8080"),
+  apiUrl: getOptionalEnvVar(
+    "NEXT_PUBLIC_API_BASE_URL",
+    "http://localhost:8080",
+  ),
   wsUrl: getOptionalEnvVar("NEXT_PUBLIC_WS_URL", "ws://localhost:8080"),
 
   // Blockchain Configuration (to be updated)

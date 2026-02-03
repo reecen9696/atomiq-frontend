@@ -144,10 +144,35 @@ export const api = {
         };
       }
 
-      return fetchApi<PaginatedResponse<Winner>>(
-        `/api/winners/recent?limit=${limit}&offset=${offset}`,
+      const gamesResponse = await fetchApi<{
+        games: any[];
+        next_cursor?: string;
+      }>(
+        `/api/games/recent?limit=${limit * 2}`, // Fetch more to ensure we get enough wins
         { retries: 2 },
       );
+
+      // Transform games to winners format, filtering only wins
+      const winners = gamesResponse.games
+        .filter((game: any) => game.outcome === "win")
+        .slice(0, limit) // Take only the requested limit after filtering
+        .map((game: any) => ({
+          id: game.game_id || game.tx_id.toString(),
+          gameName:
+            game.game_type === "coinflip" ? "Coin Flip" : game.game_type,
+          gameImage: "/games/coinflip.png", // Coinflip game image
+          amount: `${((game.payout || 0) / 1_000_000_000).toFixed(4)} SOL`, // Convert from lamports to SOL
+          timestamp: new Date(game.timestamp).toISOString(),
+        }));
+
+      return {
+        data: winners,
+        total: winners.length,
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        hasNext: gamesResponse.next_cursor !== undefined,
+        hasPrevious: offset > 0,
+      };
     },
   },
 
@@ -167,7 +192,48 @@ export const api = {
         };
       }
 
-      return fetchApi<ApiResponse<StatCard[]>>("/api/stats", { retries: 3 });
+      const casinoStats = await fetchApi<{
+        total_wagered: number;
+        gross_rtp: number;
+        bet_count: number;
+        bankroll: number;
+        wins_24h: number;
+        wagered_24h: number;
+      }>("/api/casino/stats", { retries: 3 });
+
+      // Transform casino stats to StatCard format
+      const statCards: StatCard[] = [
+        {
+          id: "sol-wagered",
+          title: "SOL WAGERED",
+          value: `$${casinoStats.total_wagered.toFixed(1)}M`,
+          icon: "💰",
+        },
+        {
+          id: "bankroll",
+          title: "BANKROLL",
+          value: `${casinoStats.bankroll.toFixed(1)}M`,
+          icon: "💳",
+        },
+        {
+          id: "gross-rtp",
+          title: "GROSS RTP",
+          value: `${casinoStats.gross_rtp.toFixed(1)}%`,
+          icon: "📊",
+        },
+        {
+          id: "total-bets",
+          title: "BETS",
+          value: casinoStats.bet_count.toLocaleString(),
+          icon: "🎯",
+        },
+      ];
+
+      return {
+        data: statCards,
+        success: true,
+        message: "Stats retrieved successfully",
+      };
     },
   },
 
@@ -175,7 +241,7 @@ export const api = {
   blocks: {
     /**
      * Fetch recent blocks
-     * GET /api/blocks/recent
+     * GET /blocks
      */
     getRecent: async (
       limit: number = config.pagination.limits.blocks,
@@ -189,10 +255,25 @@ export const api = {
         };
       }
 
-      return fetchApi<ApiResponse<Block[]>>(
-        `/api/blocks/recent?limit=${limit}`,
+      const response = await fetchApi<{ blocks: any[]; pagination: any }>(
+        `/blocks?limit=${limit}`,
         { retries: 2 },
       );
+
+      // Transform API response to Block format
+      const blocks = response.blocks.map((block: any) => ({
+        id: block.height.toString(),
+        blockNumber: block.height,
+        hash: `${block.hash.slice(0, 8)}....${block.hash.slice(-8)}`, // Format as [8]....[8]
+        transactionCount: block.tx_count,
+        timestamp: new Date(block.time).toLocaleTimeString(),
+      }));
+
+      return {
+        data: blocks,
+        success: true,
+        message: "Blocks retrieved successfully",
+      };
     },
 
     /**

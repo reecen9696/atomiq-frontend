@@ -25,10 +25,10 @@ export const config = {
   polling: {
     defaultInterval: 5000, // 5 seconds
     intervals: {
-      stats: 30000,     // 30s - reduced from 8s to match test-ui behavior
-      winners: 30000,   // 30s - reduced from 8s to match test-ui behavior  
-      blocks: 15000,    // 15s - reduced from 5s
-      games: 60000,     // 60s - reduced from 15s for less frequent polling
+      stats: 30000, // 30s - reduced from 8s to match test-ui behavior
+      winners: 30000, // 30s - reduced from 8s to match test-ui behavior
+      blocks: 15000, // 15s - reduced from 5s
+      games: 60000, // 60s - reduced from 15s for less frequent polling
     },
   },
 
@@ -43,7 +43,7 @@ export const config = {
   features: {
     enableAnalytics: env.nodeEnv === "production",
     enableDevtools: env.nodeEnv === "development",
-    enableMockData: !env.apiUrl || env.nodeEnv === "development",
+    enableMockData: false, // Use real API data
     enableErrorBoundary: true,
   },
 

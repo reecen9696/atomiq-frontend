@@ -1,66 +1,78 @@
 import { useQuery } from "@tanstack/react-query";
-import { useAtomikWebSocket } from "@/components/providers/sdk-provider";
-import { useWebSocket } from "@/lib/sdk/hooks";
 import { config } from "@/config";
 import { mockStatCards } from "@/mocks";
+import { env } from "@/config/env";
 
 /**
- * Hook for fetching current statistics using WebSocket data
- * Falls back to mock data if WebSocket is not connected
+ * Hook for fetching current statistics via direct API call like test-ui
+ * Falls back to mock data if API is not available
  *
  * @returns React Query result with stats data
  */
 export function useStats() {
-  const wsManager = useAtomikWebSocket();
-  const { casinoStats, connected } = useWebSocket(wsManager, true);
-
   return useQuery({
-    queryKey: ["stats", "current", casinoStats],
+    queryKey: ["stats", "current"],
     queryFn: async () => {
-      if (connected && casinoStats) {
-        // Transform WebSocket data to stats cards format
-        return [
-          {
-            id: "1",
-            title: "Total Games",
-            value: casinoStats.totalGames.toLocaleString(),
-            icon: "/icons/stats/games.svg",
-          },
-          {
-            id: "2",
-            title: "Total Volume",
-            value: `${casinoStats.totalVolume} SOL`,
-            icon: "/icons/stats/volume.svg",
-          },
-          {
-            id: "3",
-            title: "Active Users",
-            value: casinoStats.activeUsers.toLocaleString(),
-            icon: "/icons/stats/users.svg",
-          },
-          {
-            id: "4",
-            title: "Heads Wins",
-            value: (casinoStats.headsWins || 0).toLocaleString(),
-            icon: "/icons/stats/wins.svg",
-          },
-          {
-            id: "5",
-            title: "Tails Wins",
-            value: (casinoStats.tailsWins || 0).toLocaleString(),
-            icon: "/icons/stats/wins.svg",
-          },
-        ];
-      }
-
-      // Fall back to mock data
       if (config.features.enableMockData) {
+        console.log("📊 Stats: Using mock data");
         return mockStatCards;
       }
 
-      return [];
+      try {
+        console.log(
+          "📊 Stats: Fetching from API:",
+          `${env.apiUrl}/api/casino/stats`,
+        );
+
+        // Use the same simple fetch approach as test-ui
+        const response = await fetch(`${env.apiUrl}/api/casino/stats`);
+
+        if (!response.ok) {
+          console.warn(`📊 Stats: API returned ${response.status}`);
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const casinoStats = await response.json();
+        console.log("📊 Stats: Received API data:", casinoStats);
+
+        // Transform to StatCard format like test-ui displays
+        const statCards = [
+          {
+            id: "bets",
+            title: "BETS",
+            value: casinoStats.bet_count.toLocaleString(),
+            icon: "/icons/diceicon.svg",
+          },
+          {
+            id: "gross-rtp",
+            title: "GROSS RTP",
+            value: `${casinoStats.gross_rtp.toFixed(2)}%`,
+            icon: "/icons/diceicon.svg",
+          },
+          {
+            id: "bankroll",
+            title: "BANKROLL ",
+            value: `12.3 SOL`,
+            icon: "/icons/moneyicon.svg",
+          },
+          {
+            id: "wagered",
+            title: "WAGERED",
+            value: `${casinoStats.total_wagered.toFixed(2)} SOL`,
+            icon: "/icons/winicon.svg",
+          },
+        ];
+
+        console.log("📊 Stats: Transformed data:", statCards);
+        return statCards;
+      } catch (error) {
+        console.warn("📊 Stats: API failed, using mock data:", error);
+        return mockStatCards; // Fall back to mock data on API failure
+      }
     },
     enabled: true,
-    staleTime: 5000,
+    staleTime: 30000, // Cache for 30 seconds
+    refetchInterval: 60000, // Refetch every minute
+    retry: 2, // Only retry twice on failure
   });
 }

@@ -15,7 +15,9 @@ interface BetTrackingState {
   addPendingBet: (bet: PendingBet) => void;
   updateBetTransactionId: (gameId: string, transactionId: number) => void;
   removePendingBet: (gameId: string) => void;
-  getPendingBetByTransactionId: (transactionId: number) => PendingBet | undefined;
+  getPendingBetByTransactionId: (
+    transactionId: number,
+  ) => PendingBet | undefined;
   cleanupOldBets: () => void;
 }
 

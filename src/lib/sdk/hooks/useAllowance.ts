@@ -272,20 +272,13 @@ export function useAllowance(
         };
       }
     } catch (error) {
-      console.log(
-        "⚠️ Error checking cached allowance:",
-        error,
-      );
+      console.log("⚠️ Error checking cached allowance:", error);
     }
 
     // Only use expensive scan as last resort
     console.log("📡 No cached allowance found, using scan as fallback");
     return findMostRecentActive("casino");
-  }, [
-    userPublicKey,
-    allowanceService,
-    findMostRecentActive,
-  ]);
+  }, [userPublicKey, allowanceService, findMostRecentActive]);
 
   const approve = useCallback(
     async (
@@ -332,9 +325,15 @@ export function useAllowance(
         try {
           const key = `atomik:lastAllowancePda:${userPublicKey}`;
           localStorage.setItem(key, result.allowancePda);
-          console.log("✅ Saved allowance PDA to localStorage:", result.allowancePda);
+          console.log(
+            "✅ Saved allowance PDA to localStorage:",
+            result.allowancePda,
+          );
         } catch (storageError) {
-          console.warn("Unable to save allowance PDA to localStorage:", storageError);
+          console.warn(
+            "Unable to save allowance PDA to localStorage:",
+            storageError,
+          );
         }
 
         // Get the allowance info and cache it for instant display

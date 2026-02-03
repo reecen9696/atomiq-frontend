@@ -12,8 +12,11 @@ import { createAtomikConfig } from "@/lib/sdk";
 export function useSettlementErrors() {
   const { publicKey } = useWallet();
   const { revertBetAmount } = useAuthStore();
-  const { getPendingBetByTransactionId, removePendingBet, cleanupOldBets } = useBetTrackingStore();
-  const wsManagerRef = useRef<ReturnType<typeof createWebSocketManager> | null>(null);
+  const { getPendingBetByTransactionId, removePendingBet, cleanupOldBets } =
+    useBetTrackingStore();
+  const wsManagerRef = useRef<ReturnType<typeof createWebSocketManager> | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!publicKey) return;
@@ -27,7 +30,7 @@ export function useSettlementErrors() {
         }
 
         const connection = await wsManagerRef.current.connectToCasinoStreams(
-          publicKey?.toBase58()
+          publicKey?.toBase58(),
         );
 
         // Subscribe to settlement failures
@@ -38,10 +41,10 @@ export function useSettlementErrors() {
               transactionId: message.transaction_id,
               playerAddress: message.player_address,
               currentWallet: publicKey?.toBase58(),
-              timestamp: message.timestamp
+              timestamp: message.timestamp,
             });
             handleSettlementFailure(message);
-          }
+          },
         );
 
         // Cleanup old pending bets periodically
@@ -71,7 +74,7 @@ export function useSettlementErrors() {
       isForCurrentUser: message.player_address === publicKey?.toBase58(),
       betAmount: message.bet_amount,
       errorMessage: message.error_message,
-      isPermanent: message.is_permanent
+      isPermanent: message.is_permanent,
     });
 
     // Only handle failures for the current user
@@ -82,9 +85,12 @@ export function useSettlementErrors() {
 
     // Find the pending bet that matches this transaction
     const pendingBet = getPendingBetByTransactionId(message.transaction_id);
-    
+
     if (!pendingBet) {
-      console.warn("⚠️ No pending bet found for transaction:", message.transaction_id);
+      console.warn(
+        "⚠️ No pending bet found for transaction:",
+        message.transaction_id,
+      );
       return;
     }
 
@@ -92,7 +98,7 @@ export function useSettlementErrors() {
       gameId: pendingBet.gameId,
       betAmount: pendingBet.amount,
       revertAmount: pendingBet.amount,
-      errorType: message.is_permanent ? "permanent" : "retry"
+      errorType: message.is_permanent ? "permanent" : "retry",
     });
 
     // Revert the balance by the exact bet amount
@@ -102,12 +108,12 @@ export function useSettlementErrors() {
     bettingToast.settlementFailed(
       pendingBet.amount,
       message.error_message,
-      message.is_permanent
+      message.is_permanent,
     );
 
     // Remove the pending bet since we've handled the failure
     removePendingBet(pendingBet.gameId);
-    
+
     console.log("✅ Settlement failure processed successfully");
   };
 
