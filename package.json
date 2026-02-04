@@ -10,6 +10,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/lab": "^7.0.1-beta.21",
+    "@mui/material": "^5.18.0",
+    "@mui/styles": "^6.5.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-react": "^0.15.39",
@@ -32,6 +37,7 @@
     "sonner": "^1.7.4",
     "stream-browserify": "^3.0.0",
     "tailwind-merge": "latest",
+    "use-sound": "^5.0.0",
     "zustand": "latest"
   },
   "devDependencies": {

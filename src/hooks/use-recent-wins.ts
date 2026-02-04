@@ -5,7 +5,7 @@ import { config } from "@/config";
 import { handleQueryError } from "@/lib/error-handling";
 import { mockWinners } from "@/mocks";
 import { env } from "@/config/env";
-import { Winner } from "@/types/api";
+import { Winner } from "@/types/winner";
 
 /**
  * Hook for fetching recent winners with direct WebSocket updates
