@@ -4,25 +4,25 @@ import { Box, Button, Slider } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import clsx from "clsx";
 import { useEffect, useState, useRef } from "react";
-import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import useSound from "use-sound";
 import axios from "axios";
 import { Theme } from "@mui/material/styles";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useAuthStore } from "@/stores/auth-store";
 
 import DiceL from "./utils/DiceL";
 import DiceR from "./utils/DiceR";
 import HistoryItem from "./utils/HistoryItem";
 import EmptyItem from "./utils/EmptyItem";
-import HistoryBox from "./utils/HistoryBox";
 
 import "./dice.css";
 
-// Configuration - hardcoded for now
+// Configuration - using blockchain API
 const Config = {
   Root: {
     blockchainApiUrl:
-      process.env.NEXT_PUBLIC_BLOCKCHAIN_API_URL || "http://localhost:3001",
+      process.env.NEXT_PUBLIC_BLOCKCHAIN_API_URL || "http://localhost:8080",
   },
 };
 
@@ -39,41 +39,50 @@ const calculateChance = (target: number, isOver: boolean): number => {
 const useStyles = makeStyles((theme: Theme) => ({
   MainContainer: {
     width: "100%",
-    paddingRight: "50px",
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingRight: "0px",
     "@media (max-width: 940px)": {
       padding: "0px",
     },
   },
   GamePanelBox: {
     width: "100%",
-    height: "829px",
-    borderRadius: "30px",
+    height: "650px",
+    borderRadius: "0px",
     backgroundImage: 'url("/assets/images/dice/background.png")',
-    backgroundSize: "cover",
-    backgroundPosition: "50% 50%",
+    backgroundSize: "100% 100%",
+    backgroundPosition: "center",
     position: "relative",
     overflow: "hidden",
+    transform: "scale(1.0)",
+    transformOrigin: "top center",
     "@media (max-width: 940px)": {
       borderRadius: "0px",
+      transform: "scale(0.9)",
     },
     "@media (max-width: 681px)": {
-      height: "641px",
+      height: "550px",
+      transform: "scale(0.8)",
     },
   },
   DicePanelBox: {
     position: "absolute",
     backgroundImage: 'url("/assets/images/dice/PanelBg.png")',
-    width: "586px",
-    height: "842px",
+    width: "460px",
+    height: "660px",
     top: "65px",
     backgroundSize: "cover",
-    left: "calc((100% - 586px) / 2)",
+    left: "calc((100% - 460px) / 2)",
     "@media (max-width: 681px)": {
       backgroundImage: 'url("/assets/images/dice/PanelBgMobile.png")',
       width: "calc(100vw - 30px)",
       left: "15px",
       backgroundSize: "100% 100%",
-      height: "552px",
+      height: "420px",
     },
   },
   WolfImage: {
@@ -102,41 +111,41 @@ const useStyles = makeStyles((theme: Theme) => ({
   DiceBox: {
     width: "100%",
     backgroundImage: 'url("/assets/images/dice/DicePanel.png")',
-    height: "230.7px",
+    height: "200px",
     backgroundSize: "100% 100%",
-    marginTop: "21px",
+    marginTop: "15px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "column",
     overflow: "hidden",
     "@media (max-width: 681px)": {
-      marginTop: "17px",
-      height: "184px",
+      marginTop: "12px",
+      height: "160px",
     },
   },
   Dices: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "10px",
+    gap: "8px",
   },
   BottomBox: {
-    width: "190px",
-    height: "9px",
+    width: "140px",
+    height: "7px",
     background: "#FDF6CB",
     "@media (max-width: 681px)": {
-      width: "150px",
-      height: "7px",
+      width: "120px",
+      height: "6px",
     },
   },
   SubBox: {
-    marginTop: "11px",
+    marginTop: "8px",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     "@media (max-width: 681px)": {
-      marginTop: "9px",
+      marginTop: "6px",
     },
   },
   MultipleBox: {
@@ -157,7 +166,7 @@ const useStyles = makeStyles((theme: Theme) => ({
       color: "#FFFFFF",
     },
     "@media (max-width: 681px)": {
-      height: "25px",
+      height: "24px",
     },
   },
   ChanceBox: {
@@ -208,32 +217,32 @@ const useStyles = makeStyles((theme: Theme) => ({
   },
   UnderBox: {
     width: "calc(50% - 4px)",
-    height: "55px",
+    height: "40px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    padding: "0px 14px",
+    padding: "0px 10px",
     backgroundImage: 'url("/assets/images/dice/UnderBg.png")',
     backgroundSize: "100% 100%",
     "&>span": {
       fontFamily: "'Styrene A Web'",
       fontStyle: "normal",
       fontWeight: 700,
-      fontSize: "17px",
-      lineHeight: "22px",
+      fontSize: "14px",
+      lineHeight: "18px",
       color: "#FFFFFF",
     },
     "&>label": {
       fontFamily: "'Styrene A Web'",
       fontStyle: "normal",
       fontWeight: 700,
-      fontSize: "12px",
-      lineHeight: "11px",
+      fontSize: "10px",
+      lineHeight: "9px",
       color: "#FFFFFF",
     },
     "@media (max-width: 681px)": {
-      height: "44px",
+      height: "32px",
     },
   },
   DeactiveOverBox: {
@@ -241,52 +250,52 @@ const useStyles = makeStyles((theme: Theme) => ({
   },
   OverBox: {
     width: "calc(50% - 4px)",
-    height: "55px",
+    height: "40px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    padding: "0px 14px",
+    padding: "0px 10px",
     backgroundImage: 'url("/assets/images/dice/OverBg.png")',
     backgroundSize: "100% 100%",
     "&>span": {
       fontFamily: "'Styrene A Web'",
       fontStyle: "normal",
       fontWeight: 700,
-      fontSize: "17px",
-      lineHeight: "22px",
+      fontSize: "14px",
+      lineHeight: "18px",
       color: "#FFFFFF",
     },
     "&>label": {
       fontFamily: "'Styrene A Web'",
       fontStyle: "normal",
       fontWeight: 700,
-      fontSize: "12px",
-      lineHeight: "11px",
+      fontSize: "10px",
+      lineHeight: "9px",
       color: "#FFFFFF",
     },
     "@media (max-width: 681px)": {
-      height: "44px",
+      height: "32px",
     },
   },
   SliderBox: {
-    marginTop: "12px",
+    marginTop: "8px",
     width: "100%",
-    height: "54px",
+    height: "42px",
     backgroundColor: "#424253",
-    padding: "16px 16px 0px 22px",
+    padding: "12px 22px 0px 22px",
     "@media (max-width: 681px)": {
-      height: "43px",
-      padding: "12px 13px 0px 17px",
-      marginTop: "9px",
+      height: "35px",
+      padding: "10px 17px 0px 17px",
+      marginTop: "6px",
     },
   },
   CustomSlider: {
     padding: "0px",
-    height: "8px",
+    height: "6px",
     "& .MuiSlider-thumb": {
-      width: "44px",
-      height: "50px",
+      width: "32px",
+      height: "36px",
       backgroundImage: 'url("/assets/images/dice/Spin-Thumb.png")',
       backgroundSize: "100% 100%",
       color: "transparent",
@@ -297,8 +306,8 @@ const useStyles = makeStyles((theme: Theme) => ({
         content: "unset",
       },
       "@media (max-width: 681px)": {
-        width: "35px",
-        height: "40px",
+        width: "28px",
+        height: "32px",
       },
     },
     "& .MuiSlider-rail": {
@@ -307,30 +316,36 @@ const useStyles = makeStyles((theme: Theme) => ({
   },
   PlayButton: {
     width: "100%",
-    height: "51px",
+    height: "38px",
     backgroundImage: 'url("/assets/images/dice/PlayBg.png")',
     backgroundSize: "100% 100%",
     fontFamily: "'Styrene A Web'",
     fontStyle: "normal",
     fontWeight: 700,
-    fontSize: "17px",
-    lineHeight: "22px",
+    fontSize: "14px",
+    lineHeight: "18px",
     textAlign: "center",
     textTransform: "uppercase",
-    color: "#FFFFFF",
+    color: "#FFFFFF !important",
+    "&:hover": {
+      color: "#FFFFFF !important",
+    },
+    "&:disabled": {
+      color: "#CCCCCC !important",
+    },
     "@media (max-width: 681px)": {
-      height: "41px",
+      height: "32px",
     },
   },
   AmountInputBox: {
     backgroundImage: 'url("/assets/images/dice/InputBg.png")',
     backgroundSize: "100% 100%",
-    height: "46px",
+    height: "34px",
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-start",
     "@media (max-width: 681px)": {
-      height: "37px",
+      height: "28px",
     },
   },
   AmountInput: {
@@ -342,8 +357,8 @@ const useStyles = makeStyles((theme: Theme) => ({
     fontFamily: "'Styrene A Web'",
     fontStyle: "normal",
     fontWeight: 700,
-    fontSize: "17px",
-    lineHeight: "21px",
+    fontSize: "14px",
+    lineHeight: "18px",
     textTransform: "uppercase",
     color: "#FFFFFF",
     marginLeft: "5px",
@@ -424,9 +439,19 @@ const mockSettingData = {
 
 const Dice: React.FC = () => {
   const classes = useStyles();
+  const { publicKey } = useWallet();
+  const { isConnected, openWalletModal, user, updateVaultInfo } =
+    useAuthStore();
 
-  // Mock data - replace with actual store/context
-  const authData = mockAuthData;
+  // Replace mock data with actual wallet/auth data
+  const authData = {
+    isAuth: isConnected && publicKey && user,
+    userData: {
+      _id: publicKey?.toBase58() || "mock-user-id",
+      currency: "SOL",
+      vaultAddress: user?.vaultAddress,
+    },
+  };
   const settingData = mockSettingData;
 
   // Audio hooks - using placeholder sounds for now
@@ -434,14 +459,20 @@ const Dice: React.FC = () => {
     "/assets/sounds/bitkong/bg.mp3",
     { volume: 0.3 },
   );
-  const [playClickSound] = useSound("/assets/sounds/bitkong/cell-click.mp3", { volume: 0.5 });
-  const [playLostSound] = useSound("/assets/sounds/bitkong/lost.mp3", { volume: 0.7 });
-  const [playProfitSound] = useSound("/assets/sounds/bitkong/profit.mp3", { volume: 0.7 });
+  const [playClickSound] = useSound("/assets/sounds/bitkong/cell-click.mp3", {
+    volume: 0.5,
+  });
+  const [playLostSound] = useSound("/assets/sounds/bitkong/lost.mp3", {
+    volume: 0.7,
+  });
+  const [playProfitSound] = useSound("/assets/sounds/bitkong/profit.mp3", {
+    volume: 0.7,
+  });
 
-  const setting = { max: 1000, min: 1 };
+  const setting = { max: 100, min: 0.01 };
   const [targetValue, setTargetValue] = useState(50);
   const [isOver, setIsOver] = useState(true);
-  const [betAmount, setBetAmount] = useState(10);
+  const [betAmount, setBetAmount] = useState(0.1);
   const multiplier = calculateMultiplier(targetValue, isOver);
   const winChance = calculateChance(targetValue, isOver);
 
@@ -492,9 +523,12 @@ const Dice: React.FC = () => {
   }, [betAmount]);
 
   useEffect(() => {
-    if (betResponse !== null && betResponse.game_id !== processedBetRef.current) {
+    if (
+      betResponse !== null &&
+      betResponse.game_id !== processedBetRef.current
+    ) {
       processedBetRef.current = betResponse.game_id;
-      
+
       const animContainer =
         document.getElementsByClassName("DiceAnimContainer")[0];
       if (settingData.animation && animContainer) {
@@ -518,7 +552,7 @@ const Dice: React.FC = () => {
       };
       setDiceData({ l: diceL, r: diceR });
 
-      setHistoryData(prevHistory => [...prevHistory, history]);
+      setHistoryData((prevHistory) => [...prevHistory, history]);
 
       playEffectSound(
         betResponse.outcome === "win" ? playProfitSound : playLostSound,
@@ -538,12 +572,7 @@ const Dice: React.FC = () => {
         settingData.animation ? 300 : 0,
       );
     }
-  }, [
-    betResponse,
-    settingData.animation,
-    playProfitSound,
-    playLostSound,
-  ]);
+  }, [betResponse, settingData.animation, playProfitSound, playLostSound]);
 
   const handleChangeSlider = (event: Event, value: number | number[]) => {
     const numValue = Array.isArray(value) ? value[0] : value;
@@ -558,10 +587,14 @@ const Dice: React.FC = () => {
   const handleAmountAction = (type: number) => {
     switch (type) {
       case 0:
-        setBetAmount(betAmount / 2);
+        setBetAmount(
+          Math.max(setting.min, parseFloat((betAmount / 2).toFixed(3))),
+        );
         break;
       case 1:
-        setBetAmount(betAmount * 2);
+        setBetAmount(
+          Math.min(setting.max, parseFloat((betAmount * 2).toFixed(3))),
+        );
         break;
       case 2:
         setBetAmount(setting.max);
@@ -579,15 +612,21 @@ const Dice: React.FC = () => {
   const handlePlay = async () => {
     console.log("🎲 DICE PLAY BUTTON CLICKED!");
 
-    if (!authData.isAuth) {
-      console.log("❌ User not authenticated");
-      toast.warning("Please login and try again");
+    if (!isConnected || !publicKey) {
+      console.log("❌ Wallet not connected");
+      openWalletModal();
+      return;
+    }
+
+    if (!user?.vaultAddress) {
+      console.log("❌ No vault address found");
+      console.error("Vault address required for betting");
       return;
     }
 
     if (targetValue < 1 || targetValue > 99) {
       console.log("❌ Invalid target:", targetValue);
-      toast.error("Target must be between 1 and 99");
+      console.error("Target must be between 1 and 99");
       return;
     }
 
@@ -601,13 +640,15 @@ const Dice: React.FC = () => {
       diceBottomRef.current.style.backgroundColor = "#FDF6CB";
     }
     setPlayLoading(true);
-    
+
     // Reset processed bet reference for new game
     processedBetRef.current = null;
 
     try {
       const requestData = {
         player_id: authData.userData._id,
+        player_address: publicKey?.toBase58(),
+        vault_address: user?.vaultAddress,
         bet_amount: betAmount,
         target: targetValue,
         condition: isOver ? "over" : "under",
@@ -621,41 +662,8 @@ const Dice: React.FC = () => {
       console.log("📤 Sending HTTP request to:", apiUrl);
       console.log("📦 Request data:", JSON.stringify(requestData, null, 2));
 
-      let response;
-      try {
-        response = await axios.post(apiUrl, requestData);
-        console.log("✅ HTTP Response received:", response.data);
-      } catch (networkError: any) {
-        console.warn("⚠️ Backend not available, using mock response:", networkError.message);
-        // Use mock response when backend is not available
-        const mockRoll = Math.floor(Math.random() * 100) + 1;
-        const mockOutcome = isOver 
-          ? (mockRoll > targetValue ? "win" : "loss")
-          : (mockRoll < targetValue ? "win" : "loss");
-        
-        const mockResult = {
-          game_id: "mock-game-" + Date.now(),
-          target: targetValue,
-          condition: isOver ? "over" as const : "under" as const,
-          roll: mockRoll,
-          outcome: mockOutcome as "win" | "loss",
-          payment: {
-            bet_amount: betAmount,
-            payout_amount: mockOutcome === "win" ? betAmount * multiplier : 0
-          }
-        };
-        
-        response = { data: { status: "complete", result: mockResult } };
-        console.log("🎲 Mock game result:", mockResult);
-        
-        // Show demo mode notification
-        const message = `🎮 Demo Mode: ${mockOutcome === "win" ? "You won!" : "Try again!"} (Roll: ${mockRoll})`;
-        if (mockOutcome === "win") {
-          toast.success(message);
-        } else {
-          toast.info(message);
-        }
-      }
+      const response = await axios.post(apiUrl, requestData);
+      console.log("✅ HTTP Response received:", response.data);
       console.log("📊 Game Result:", {
         game_id: response.data.result?.game_id,
         roll: response.data.result?.roll,
@@ -680,7 +688,10 @@ const Dice: React.FC = () => {
         status: error.response?.status,
         url: `${Config.Root.blockchainApiUrl}/api/dice/play`,
       });
-      toast.error(error.response?.data || error.message || "Failed to play dice");
+      console.error(
+        "Failed to play dice:",
+        error.response?.data || error.message,
+      );
       setPlayLoading(false);
     }
   };
@@ -754,7 +765,7 @@ const Dice: React.FC = () => {
             <Box className={classes.SubBox}>
               <Box className={classes.PayoutBox}>
                 <span>PAYOUT</span>
-                <span>{Number(betAmount * multiplier).toFixed(2)}</span>
+                <span>{Number(betAmount * multiplier).toFixed(3)} SOL</span>
               </Box>
             </Box>
             <Box className={classes.SubBox}>
@@ -809,6 +820,9 @@ const Dice: React.FC = () => {
               <input
                 className={classes.AmountInput}
                 type="number"
+                step="0.01"
+                min="0.01"
+                max="100"
                 value={betAmount}
                 onChange={handleBetAmount}
               />
@@ -838,9 +852,6 @@ const Dice: React.FC = () => {
             </Box>
           </Box>
         </Box>
-      </Box>
-      <Box className={classes.HistoryTable}>
-        <HistoryBox />
       </Box>
     </Box>
   );

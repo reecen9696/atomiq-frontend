@@ -4,19 +4,19 @@ import clsx from "clsx";
 
 const useStyles = makeStyles(() => ({
   DiceContainer: {
-    width: "32px",
-    height: "32px",
+    width: "24px",
+    height: "24px",
     backgroundColor: "#9F60F1",
     position: "relative",
     display: "flex",
     "@media (max-width: 681px)": {
-      width: "26px",
-      height: "26px",
+      width: "20px",
+      height: "20px",
     },
   },
   CircleItem: {
-    width: "5px",
-    height: "5px",
+    width: "4px",
+    height: "4px",
     borderRadius: "50%",
     backgroundColor: "#442F32",
     position: "absolute",

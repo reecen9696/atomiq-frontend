@@ -4,26 +4,26 @@ import clsx from "clsx";
 
 const useStyles = makeStyles(() => ({
   DiceContainer: {
-    width: "90px",
-    height: "90px",
+    width: "65px",
+    height: "65px",
     backgroundImage: 'url("/assets/images/dice/DiceR.png")',
     backgroundSize: "100% 100%",
     position: "relative",
     display: "flex",
     "@media (max-width: 681px)": {
-      width: "70px",
-      height: "70px",
+      width: "50px",
+      height: "50px",
     },
   },
   CircleItem: {
-    width: "13px",
-    height: "13px",
+    width: "9px",
+    height: "9px",
     borderRadius: "50%",
     backgroundColor: "#FFF",
     position: "absolute",
     "@media (max-width: 681px)": {
-      width: "11px",
-      height: "11px",
+      width: "7px",
+      height: "7px",
     },
   },
 }));
