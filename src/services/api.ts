@@ -11,6 +11,18 @@ import {
 } from "@/lib/utils";
 
 /**
+ * Game data from API
+ */
+interface Game {
+  game_id: string;
+  tx_id: string;
+  game_type: string;
+  outcome: string;
+  payout: number;
+  timestamp: string | number;
+}
+
+/**
  * Enhanced API Client
  * Provides type-safe, error-handled API communication
  */
@@ -152,7 +164,7 @@ export const api = {
       }
 
       const gamesResponse = await fetchApi<{
-        games: any[];
+        games: Game[];
         next_cursor?: string;
       }>(
         `/api/games/recent?limit=${limit * 2}`, // Fetch more to ensure we get enough wins
@@ -164,9 +176,9 @@ export const api = {
 
       // Transform games to winners format, filtering only wins
       const winners = gamesResponse.games
-        .filter((game: any) => game.outcome === "win")
+        .filter((game: Game) => game.outcome === "win")
         .slice(0, limit) // Take only the requested limit after filtering
-        .map((game: any) => {
+        .map((game: Game) => {
           // Map game types to proper display names
           let gameName = game.game_type;
           let gameImage = "/games/coinflip.png";
@@ -293,7 +305,7 @@ export const api = {
         };
       }
 
-      const response = await fetchApi<{ blocks: any[]; pagination: any }>(
+      const response = await fetchApi<{ blocks: Block[]; pagination: { total: number; page: number } }>(
         `/blocks?limit=${limit}`,
         { retries: 2 },
       );
