@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { config, env } from "@/config";
 import { mockStatCards } from "@/mocks";
+import { formatNumber, formatPercentage, formatSOLWithSymbol } from "@/lib/utils";
 
 /**
  * Hook for fetching current statistics via direct API call like test-ui
@@ -39,13 +40,13 @@ export function useStats() {
           {
             id: "bets",
             title: "BETS",
-            value: casinoStats.bet_count.toLocaleString(),
+            value: formatNumber(casinoStats.bet_count),
             icon: "/icons/diceicon.svg",
           },
           {
             id: "gross-rtp",
             title: "GROSS RTP",
-            value: `${casinoStats.gross_rtp.toFixed(2)}%`,
+            value: formatPercentage(casinoStats.gross_rtp, 2),
             icon: "/icons/diceicon.svg",
           },
           {
@@ -57,7 +58,7 @@ export function useStats() {
           {
             id: "wagered",
             title: "WAGERED",
-            value: `${casinoStats.total_wagered.toFixed(2)} SOL`,
+            value: formatSOLWithSymbol(casinoStats.total_wagered, 2),
             icon: "/icons/winicon.svg",
           },
         ];

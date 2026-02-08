@@ -2,6 +2,7 @@ import { config } from "@/config";
 import type { Winner, StatCard, ApiResponse, PaginatedResponse } from "@/types";
 import type { Block } from "@/mocks/blocks";
 import { ErrorFactory, AppError, retryWithBackoff } from "@/lib/error-handling";
+import { formatSOLWithSymbol, formatNumber, formatPercentage, formatHash } from "@/lib/utils";
 
 /**
  * Enhanced API Client
@@ -189,7 +190,7 @@ export const api = {
             id: game.game_id || game.tx_id.toString(),
             gameName,
             gameImage,
-            amount: `${((game.payout || 0) / 1_000_000_000).toFixed(4)} SOL`,
+            amount: formatSOLWithSymbol((game.payout || 0) / 1_000_000_000, 4),
             timestamp: new Date(game.timestamp).toISOString(),
           };
         });
@@ -249,13 +250,13 @@ export const api = {
         {
           id: "gross-rtp",
           title: "GROSS RTP",
-          value: `${casinoStats.gross_rtp.toFixed(1)}%`,
+          value: formatPercentage(casinoStats.gross_rtp, 1),
           icon: "📊",
         },
         {
           id: "total-bets",
           title: "BETS",
-          value: casinoStats.bet_count.toLocaleString(),
+          value: formatNumber(casinoStats.bet_count),
           icon: "🎯",
         },
       ];
@@ -295,7 +296,7 @@ export const api = {
       const blocks = response.blocks.map((block: any) => ({
         id: block.height.toString(),
         blockNumber: block.height,
-        hash: `${block.hash.slice(0, 8)}....${block.hash.slice(-8)}`, // Format as [8]....[8]
+        hash: formatHash(block.hash), // Format as [8]....[8]
         transactionCount: block.tx_count,
         timestamp: new Date(block.time).toLocaleTimeString(),
       }));

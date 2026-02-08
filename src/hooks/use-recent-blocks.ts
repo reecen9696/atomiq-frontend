@@ -4,6 +4,7 @@ import { api } from "@/services/api";
 import { config, env } from "@/config";
 import { handleQueryError } from "@/lib/error-handling";
 import { mockBlocks } from "@/mocks";
+import { formatHash } from "@/lib/utils";
 
 /**
  * Hook for fetching recent blockchain blocks with direct WebSocket updates
@@ -84,7 +85,7 @@ export function useRecentBlocks(limit?: number) {
           const newBlock = {
             id: `block-${data.height}-${crypto.randomUUID()}`, // Guaranteed unique ID
             blockNumber: data.height,
-            hash: `${data.hash.slice(0, 8)}....${data.hash.slice(-8)}`, // Format as [8]....[8]
+            hash: formatHash(data.hash), // Format as [8]....[8]
             transactionCount: data.tx_count,
             timestamp: new Date(data.timestamp * 1000).toLocaleTimeString(),
           };

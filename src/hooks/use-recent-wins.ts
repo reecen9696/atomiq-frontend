@@ -5,6 +5,7 @@ import { config, env } from "@/config";
 import { handleQueryError } from "@/lib/error-handling";
 import { mockWinners } from "@/mocks";
 import { Winner } from "@/types/winner";
+import { formatSOLWithSymbol } from "@/lib/utils";
 
 /**
  * Hook for fetching recent winners with direct WebSocket updates
@@ -94,7 +95,7 @@ export function useRecentWins(limit?: number) {
                 ? "Coin Flip"
                 : data.game_type || data.game || "Unknown",
             gameImage: "/games/coinflip.png",
-            amount: `${(data.amount_won || data.amount || 0).toFixed(4)} ${data.currency || "SOL"}`,
+            amount: formatSOLWithSymbol(data.amount_won || data.amount || 0, 4),
             timestamp: new Date(
               (data.timestamp || Date.now()) * 1000,
             ).toISOString(),

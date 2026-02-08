@@ -4,7 +4,22 @@
  */
 
 // Core utilities
-export { cn, formatSOL, formatAddress, formatTimestamp, sleep } from "./utils";
+export {
+  cn,
+  formatSOL,
+  formatSOLWithSymbol,
+  formatAddress,
+  formatHash,
+  formatNumber,
+  formatPercentage,
+  formatTimeAgo,
+  formatTimestamp,
+  sleep,
+  slugify,
+  unslugify,
+  clamp,
+  debounce,
+} from "./utils";
 
 // Validation utilities
 export {
