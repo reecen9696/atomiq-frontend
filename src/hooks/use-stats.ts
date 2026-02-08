@@ -1,7 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { config } from "@/config";
+import { config, env } from "@/config";
 import { mockStatCards } from "@/mocks";
-import { env } from "@/config/env";
+import { logger } from "@/lib/logger";
+import {
+  formatNumber,
+  formatPercentage,
+  formatSOLWithSymbol,
+} from "@/lib/utils";
 
 /**
  * Hook for fetching current statistics via direct API call like test-ui
@@ -14,39 +19,36 @@ export function useStats() {
     queryKey: ["stats", "current"],
     queryFn: async () => {
       if (config.features.enableMockData) {
-        console.log("📊 Stats: Using mock data");
+        logger.debug("📊 Stats: Using mock data");
         return mockStatCards;
       }
 
       try {
-        console.log(
-          "📊 Stats: Fetching from API:",
-          `${env.apiUrl}/api/casino/stats`,
-        );
+        logger.api("📊 Stats: Fetching from API", `${env.apiUrl}/api/casino/stats`);
 
         // Use the same simple fetch approach as test-ui
         const response = await fetch(`${env.apiUrl}/api/casino/stats`);
 
         if (!response.ok) {
-          console.warn(`📊 Stats: API returned ${response.status}`);
+          logger.warn("📊 Stats: API returned error", { status: response.status });
           throw new Error(`HTTP ${response.status}`);
         }
 
         const casinoStats = await response.json();
-        console.log("📊 Stats: Received API data:", casinoStats);
+        logger.debug("📊 Stats: Received API data", { casinoStats });
 
         // Transform to StatCard format like test-ui displays
         const statCards = [
           {
             id: "bets",
             title: "BETS",
-            value: casinoStats.bet_count.toLocaleString(),
+            value: formatNumber(casinoStats.bet_count),
             icon: "/icons/diceicon.svg",
           },
           {
             id: "gross-rtp",
             title: "GROSS RTP",
-            value: `${casinoStats.gross_rtp.toFixed(2)}%`,
+            value: formatPercentage(casinoStats.gross_rtp, 2),
             icon: "/icons/diceicon.svg",
           },
           {
@@ -58,15 +60,15 @@ export function useStats() {
           {
             id: "wagered",
             title: "WAGERED",
-            value: `${casinoStats.total_wagered.toFixed(2)} SOL`,
+            value: formatSOLWithSymbol(casinoStats.total_wagered, 2),
             icon: "/icons/winicon.svg",
           },
         ];
 
-        console.log("📊 Stats: Transformed data:", statCards);
+        logger.debug("📊 Stats: Transformed data", { count: statCards.length });
         return statCards;
       } catch (error) {
-        console.warn("📊 Stats: API failed, using mock data:", error);
+        logger.warn("📊 Stats: API failed, using mock data", { error });
         return mockStatCards; // Fall back to mock data on API failure
       }
     },

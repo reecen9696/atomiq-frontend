@@ -1,4 +1,5 @@
-import { env } from "@/config/env";
+import { env } from "@/config";
+import { logger } from "@/lib/logger";
 
 /**
  * WebSocket Service
@@ -19,7 +20,7 @@ class WebSocketService {
    */
   connect(): void {
     if (!env.enableWebSocket) {
-      console.warn("WebSocket is disabled in environment config");
+      logger.warn("WebSocket is disabled in environment config");
       return;
     }
 
@@ -31,7 +32,7 @@ class WebSocketService {
       this.ws = new WebSocket(env.wsUrl);
       this.setupEventListeners();
     } catch (error) {
-      console.error("WebSocket connection failed:", error);
+      logger.error("WebSocket connection failed", { error });
       this.handleReconnect();
     }
   }
@@ -72,7 +73,7 @@ class WebSocketService {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ event, data }));
     } else {
-      console.warn("WebSocket is not connected");
+      logger.warn("WebSocket is not connected");
     }
   }
 
@@ -80,19 +81,19 @@ class WebSocketService {
     if (!this.ws) return;
 
     this.ws.onopen = () => {
-      console.log("WebSocket connected");
+      logger.websocket("WebSocket connected");
       this.reconnectAttempts = 0;
       this.emit("connect", null);
     };
 
     this.ws.onclose = () => {
-      console.log("WebSocket disconnected");
+      logger.websocket("WebSocket disconnected");
       this.emit("disconnect", null);
       this.handleReconnect();
     };
 
     this.ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
+      logger.error("WebSocket error", { error });
       this.emit("error", error);
     };
 
@@ -101,7 +102,7 @@ class WebSocketService {
         const message = JSON.parse(event.data);
         this.emit(message.event, message.data);
       } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
+        logger.error("Failed to parse WebSocket message", { error });
       }
     };
   }
@@ -115,16 +116,17 @@ class WebSocketService {
 
   private handleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error("Max reconnection attempts reached");
+      logger.error("Max reconnection attempts reached", { attempts: this.reconnectAttempts });
       return;
     }
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
 
-    console.log(
-      `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`,
-    );
+    logger.websocket("Reconnecting", {
+      delay,
+      attempt: this.reconnectAttempts,
+    });
     setTimeout(() => this.connect(), delay);
   }
 }

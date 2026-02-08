@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { logger } from '@/lib/logger';
 
 interface IconProps {
   name: string;
@@ -36,7 +37,7 @@ export const Icon = React.memo<IconProps>(({
   const iconPath = iconPaths[name as IconName];
   
   if (!iconPath) {
-    console.warn(`Icon "${name}" not found in iconPaths`);
+    logger.warn(`Icon "${name}" not found in iconPaths`);
     return null;
   }
 

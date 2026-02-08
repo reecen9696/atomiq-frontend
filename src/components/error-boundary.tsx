@@ -6,6 +6,7 @@ import {
   type AppError,
   ErrorSeverity,
 } from "@/lib/error-handling";
+import { logger } from "@/lib/logger";
 import { config } from "@/config";
 
 interface ErrorBoundaryProps {
@@ -70,11 +71,11 @@ export class ErrorBoundary extends React.Component<
 
     // Log additional context in development
     if (config.features.enableDevtools) {
-      console.group("🚨 Error Boundary Caught Error");
-      console.error("Error:", error);
-      console.error("Error Info:", errorInfo);
-      console.error("App Error:", appError.toJSON());
-      console.groupEnd();
+      logger.group("🚨 Error Boundary Caught Error", () => {
+        logger.error("Error", error);
+        logger.error("Error Info", errorInfo);
+        logger.error("App Error", appError.toJSON());
+      });
     }
   }
 

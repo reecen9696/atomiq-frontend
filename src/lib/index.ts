@@ -4,7 +4,22 @@
  */
 
 // Core utilities
-export { cn, formatSOL, formatAddress, formatTimestamp, sleep } from "./utils";
+export {
+  cn,
+  formatSOL,
+  formatSOLWithSymbol,
+  formatAddress,
+  formatHash,
+  formatNumber,
+  formatPercentage,
+  formatTimeAgo,
+  formatTimestamp,
+  sleep,
+  slugify,
+  unslugify,
+  clamp,
+  debounce,
+} from "./utils";
 
 // Validation utilities
 export {
@@ -31,6 +46,9 @@ export {
   handleQueryError,
   retryWithBackoff,
 } from "./error-handling";
+
+// Logging
+export { logger, type LogContext, type LogLevel, type LogOptions } from "./logger";
 
 // Performance utilities
 export {

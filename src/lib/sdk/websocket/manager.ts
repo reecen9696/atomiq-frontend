@@ -1,5 +1,6 @@
 import type { AtomikConfig, WebSocketConfig } from "../env";
 import { getApiConfig, getWebSocketConfig } from "../env";
+import { logger } from "@/lib/logger";
 
 export interface WebSocketMessage {
   type: string;
@@ -101,14 +102,14 @@ export class WebSocketConnection {
 
             // Filter out heartbeat messages from console logs
             if (message.type !== "heartbeat") {
-              console.log("📨 WebSocket message:", message.type, message);
+              logger.websocket("Message received", { type: message.type, message });
             }
 
             // Handle flat message structure from backend (not nested with data property)
             const handlers = this.messageHandlers.get(message.type) || [];
             handlers.forEach((handler) => handler(message));
           } catch (error) {
-            console.error("Failed to parse WebSocket message:", error);
+            logger.error("Failed to parse WebSocket message", error);
           }
         };
 
@@ -216,7 +217,7 @@ export class WebSocketConnection {
    */
   private scheduleReconnect(): void {
     if (this.reconnectAttempt >= this.config.reconnectAttempts) {
-      console.error("Max reconnection attempts reached");
+      logger.error("Max reconnection attempts reached", { attempts: this.reconnectAttempt });
       return;
     }
 
@@ -225,11 +226,9 @@ export class WebSocketConnection {
     this.reconnectAttempt++;
 
     this.reconnectTimer = setTimeout(() => {
-      console.log(
-        `Reconnecting to WebSocket (attempt ${this.reconnectAttempt})...`,
-      );
+      logger.websocket("Reconnecting", { attempt: this.reconnectAttempt });
       this.connect().catch((error) => {
-        console.error("Reconnection failed:", error);
+        logger.error("Reconnection failed", error);
       });
     }, delay);
   }
@@ -283,8 +282,10 @@ export class AtomikWebSocketManager {
     }
 
     const baseUrl = this.getDefaultWebSocketUrl() + `/ws?${params.toString()}`;
-    console.log("🔌 WebSocket URL:", baseUrl);
-    console.log("📊 Settlement notifications enabled:", !!walletAddress);
+    logger.debug("🔌 WebSocket connection", { 
+      url: baseUrl,
+      settlementsEnabled: !!walletAddress 
+    });
 
     const connectionName = walletAddress
       ? `casino-stream-${walletAddress}`

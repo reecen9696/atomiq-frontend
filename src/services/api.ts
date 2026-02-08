@@ -2,6 +2,25 @@ import { config } from "@/config";
 import type { Winner, StatCard, ApiResponse, PaginatedResponse } from "@/types";
 import type { Block } from "@/mocks/blocks";
 import { ErrorFactory, AppError, retryWithBackoff } from "@/lib/error-handling";
+import { logger } from "@/lib/logger";
+import {
+  formatSOLWithSymbol,
+  formatNumber,
+  formatPercentage,
+  formatHash,
+} from "@/lib/utils";
+
+/**
+ * Game data from API
+ */
+interface Game {
+  game_id: string;
+  tx_id: string;
+  game_type: string;
+  outcome: string;
+  payout: number;
+  timestamp: string | number;
+}
 
 /**
  * Enhanced API Client
@@ -145,7 +164,7 @@ export const api = {
       }
 
       const gamesResponse = await fetchApi<{
-        games: any[];
+        games: Game[];
         next_cursor?: string;
       }>(
         `/api/games/recent?limit=${limit * 2}`, // Fetch more to ensure we get enough wins
@@ -153,17 +172,17 @@ export const api = {
       );
 
       // Log raw games response for debugging
-      console.log("🎰 Raw games response:", gamesResponse.games.slice(0, 5));
-      
+      logger.debug("🎰 Raw games response", { sampleSize: gamesResponse.games.slice(0, 5).length });
+
       // Transform games to winners format, filtering only wins
       const winners = gamesResponse.games
-        .filter((game: any) => game.outcome === "win")
+        .filter((game: Game) => game.outcome === "win")
         .slice(0, limit) // Take only the requested limit after filtering
-        .map((game: any) => {
+        .map((game: Game) => {
           // Map game types to proper display names
           let gameName = game.game_type;
           let gameImage = "/games/coinflip.png";
-          
+
           switch (game.game_type?.toLowerCase()) {
             case "coinflip":
               gameName = "Coin Flip";
@@ -184,17 +203,17 @@ export const api = {
             default:
               gameName = game.game_type || "Unknown";
           }
-          
+
           return {
             id: game.game_id || game.tx_id.toString(),
             gameName,
             gameImage,
-            amount: `${((game.payout || 0) / 1_000_000_000).toFixed(4)} SOL`,
+            amount: formatSOLWithSymbol((game.payout || 0) / 1_000_000_000, 4),
             timestamp: new Date(game.timestamp).toISOString(),
           };
         });
-      
-      console.log("🎰 Transformed winners:", winners.slice(0, 3));
+
+      logger.debug("🎰 Transformed winners:", { winners: winners.slice(0, 3) });
 
       return {
         data: winners,
@@ -249,13 +268,13 @@ export const api = {
         {
           id: "gross-rtp",
           title: "GROSS RTP",
-          value: `${casinoStats.gross_rtp.toFixed(1)}%`,
+          value: formatPercentage(casinoStats.gross_rtp, 1),
           icon: "📊",
         },
         {
           id: "total-bets",
           title: "BETS",
-          value: casinoStats.bet_count.toLocaleString(),
+          value: formatNumber(casinoStats.bet_count),
           icon: "🎯",
         },
       ];
@@ -286,7 +305,7 @@ export const api = {
         };
       }
 
-      const response = await fetchApi<{ blocks: any[]; pagination: any }>(
+      const response = await fetchApi<{ blocks: Block[]; pagination: { total: number; page: number } }>(
         `/blocks?limit=${limit}`,
         { retries: 2 },
       );
@@ -295,7 +314,7 @@ export const api = {
       const blocks = response.blocks.map((block: any) => ({
         id: block.height.toString(),
         blockNumber: block.height,
-        hash: `${block.hash.slice(0, 8)}....${block.hash.slice(-8)}`, // Format as [8]....[8]
+        hash: formatHash(block.hash), // Format as [8]....[8]
         transactionCount: block.tx_count,
         timestamp: new Date(block.time).toLocaleTimeString(),
       }));

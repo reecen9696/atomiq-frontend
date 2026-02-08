@@ -6,6 +6,7 @@ import { useAllowanceForCasino } from "@/lib/sdk/hooks/useAllowance";
 import { createAllowanceService } from "@/lib/sdk/allowance/service";
 import { toast } from "@/lib/toast";
 import { solanaService } from "@/services/solana";
+import { logger } from "@/lib/logger";
 
 interface PlayTimerModalProps {
   isOpen: boolean;
@@ -73,17 +74,13 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         }
 
         // If no valid cache, check if user has any allowances at all
-        console.log(
-          "📊 No cached data found, checking if user has any allowances...",
-        );
+        logger.debug("📊 No cached data found, checking if user has any allowances...");
         try {
           const nextNonce = await allowanceHook.getNextNonce("casino");
-          console.log("🔢 Next nonce would be:", nextNonce);
+          logger.debug("🔢 Next nonce would be", { nextNonce });
 
           if (nextNonce === 0) {
-            console.log(
-              "❌ No allowances found - user needs to create one first",
-            );
+            logger.debug("❌ No allowances found - user needs to create one first");
             setExpiresAt(null);
             setAllowanceData(null);
             setProgressPercentage(0);
@@ -91,14 +88,12 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
             return;
           }
         } catch (nonceError) {
-          console.warn("⚠️ Could not get next nonce:", nonceError);
+          logger.warn("⚠️ Could not get next nonce", { error: nonceError });
         }
 
         // Fallback: Only use slow on-chain scanning as last resort
-        console.log(
-          "🐌 No cache available, falling back to slow on-chain scan...",
-        );
-        console.log("⚠️ This is slow and should only happen once per user");
+        logger.warn("🐌 No cache available, falling back to slow on-chain scan");
+        logger.warn("⚠️ This is slow and should only happen once per user");
 
         // Add timeout to prevent hanging
         const timeoutPromise = new Promise((_, reject) =>
@@ -113,9 +108,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
           ]);
         } catch (error) {
           if ((error as Error)?.message === "Timeout") {
-            console.warn(
-              "⏰ On-chain scan timed out - this is expected with many allowances",
-            );
+            logger.warn("⏰ On-chain scan timed out - this is expected with many allowances");
             setLoadingTimedOut(true);
             setExpiresAt(null);
             setAllowanceData(null);
@@ -152,13 +145,13 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
           };
           allowanceHook.savePlaySessionData(playSessionData);
         } else {
-          console.warn("⚠️ No active allowance found");
+          logger.warn("⚠️ No active allowance found");
           setExpiresAt(null);
           setAllowanceData(null);
           setProgressPercentage(0);
         }
       } catch (error) {
-        console.error("❌ Failed to fetch allowance info:", error);
+        logger.error("❌ Failed to fetch allowance info", error);
         setExpiresAt(null);
         setAllowanceData(null);
         setProgressPercentage(0);
@@ -223,8 +216,10 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
           "Session extended",
           "Your play session has been extended successfully",
         );
-        console.log("🔄 Session extended:", result.signature);
-        console.log("📍 Allowance PDA:", result.allowancePda);
+        logger.transaction("allowance-extend", { 
+          signature: result.signature,
+          allowancePda: result.allowancePda 
+        });
 
         // Get updated cached data (should be available immediately after extension)
         const updatedCache = allowanceHook.getCachedPlaySession();
@@ -265,10 +260,10 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         onClose();
       } else {
         // Error was already handled in the hook and displayed in toast
-        console.error("Failed to extend session - no result returned");
+        logger.error("Failed to extend session - no result returned");
       }
     } catch (error) {
-      console.error("❌ Failed to extend session:", error);
+      logger.error("❌ Failed to extend session", error);
       const errorMsg =
         error instanceof Error ? error.message : "Failed to extend session";
       toast.error("Extension failed", errorMsg);

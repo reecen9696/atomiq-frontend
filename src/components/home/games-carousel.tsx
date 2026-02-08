@@ -5,6 +5,7 @@ import { useCallback, useState, useEffect, useMemo } from "react";
 import React from "react";
 import { GameCard } from "@/components/ui/game-card";
 import type { GameCardProps } from "@/components/ui/game-card";
+import { GradientOverlay } from "@/components/shared/gradient-overlay";
 import Image from "next/image";
 
 interface GamesCarouselProps {
@@ -127,8 +128,7 @@ export const GamesCarousel = React.memo<GamesCarouselProps>(({ games }) => {
         <div ref={emblaRef}>
           <div className="flex gap-4">{memoizedGames}</div>
         </div>
-        {/* Gradient fade overlay on right */}
-        <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#0F0E11] to-transparent pointer-events-none z-10" />
+        <GradientOverlay position="right" size="w-24" />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@
 
 import React, { memo, useMemo, useCallback, type ComponentType } from "react";
 import { config } from "@/config";
+import { logger } from "@/lib/logger";
 
 /**
  * Enhanced memo with debugging support
@@ -28,8 +29,10 @@ export function createMemoComponent<P extends object>(
 
       if (endTime - startTime > 16) {
         // More than one frame
-        console.warn(
-          `Slow render detected for ${displayName || "Component"}: ${endTime - startTime}ms`,
+        logger.performance(
+          `Slow render: ${displayName || "Component"}`,
+          endTime - startTime,
+          "ms"
         );
       }
 
@@ -150,7 +153,7 @@ export const BundleSplitting = {
         ? (module as { default: T }).default
         : (module as T);
     } catch (error) {
-      console.error("Failed to load module:", error);
+      logger.error("Failed to load module", { error });
       if (fallback) {
         return fallback;
       }
@@ -164,7 +167,7 @@ export const BundleSplitting = {
   preloadRoute: (routeImport: () => Promise<unknown>) => {
     if (config.performance.enablePreload) {
       requestIdleCallback(() => {
-        routeImport().catch(console.error);
+        routeImport().catch((error) => logger.error("Route preload failed", { error }));
       });
     }
   },
@@ -195,7 +198,7 @@ export const MemoryManagement = {
       try {
         cleanup();
       } catch (error) {
-        console.error("Cleanup function failed:", error);
+        logger.error("Cleanup function failed", { error });
       }
     });
     MemoryManagement.cleanupRegistry.clear();
@@ -207,10 +210,10 @@ export const MemoryManagement = {
   monitorMemory: () => {
     if (config.features.enableDevtools && "memory" in performance) {
       const memory = (performance as any).memory;
-      console.log("Memory usage:", {
-        used: Math.round(memory.usedJSHeapSize / 1048576),
-        total: Math.round(memory.totalJSHeapSize / 1048576),
-        limit: Math.round(memory.jsHeapSizeLimit / 1048576),
+      logger.debug("Memory usage", {
+        usedMB: Math.round(memory.usedJSHeapSize / 1048576),
+        totalMB: Math.round(memory.totalJSHeapSize / 1048576),
+        limitMB: Math.round(memory.jsHeapSizeLimit / 1048576),
       });
     }
   },
@@ -237,7 +240,7 @@ export const PerformanceMonitoring = {
       const result = React.createElement(Component_, props);
       const endTime = performance.now();
 
-      console.log(`Render time for ${name}: ${endTime - startTime}ms`);
+      logger.performance(`Render time: ${name}`, endTime - startTime, "ms");
       return result;
     };
   },
@@ -253,14 +256,15 @@ export const PerformanceMonitoring = {
     // Observe LCP
     new PerformanceObserver((list) => {
       list.getEntries().forEach((entry) => {
-        console.log("LCP:", entry.startTime);
+        logger.performance("LCP", entry.startTime, "ms");
       });
     }).observe({ entryTypes: ["largest-contentful-paint"] });
 
     // Observe FID
     new PerformanceObserver((list) => {
       list.getEntries().forEach((entry) => {
-        console.log("FID:", (entry as any).processingStart - entry.startTime);
+        const delay = (entry as any).processingStart - entry.startTime;
+        logger.performance("FID", delay, "ms");
       });
     }).observe({ entryTypes: ["first-input"] });
   },

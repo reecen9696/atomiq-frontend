@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
+import { logger } from "@/lib/logger";
 
 export function useBalance() {
   const { connection } = useConnection();
@@ -27,7 +28,7 @@ export function useBalance() {
       setBalance(sol);
       updateBalance(sol);
     } catch (err) {
-      console.error("Failed to fetch balance:", err);
+      logger.error("Failed to fetch balance:", err);
 
       // Check if it's a 403 or rate limit error
       const errorMessage = (err as Error).message || "Failed to fetch balance";

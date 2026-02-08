@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/services/api";
-import { config } from "@/config";
+import { config, env } from "@/config";
 import { handleQueryError } from "@/lib/error-handling";
 import { mockWinners } from "@/mocks";
-import { env } from "@/config/env";
 import { Winner } from "@/types/winner";
+import { formatSOLWithSymbol } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook for fetching recent winners with direct WebSocket updates
@@ -30,12 +31,12 @@ export function useRecentWins(limit?: number) {
       }
 
       try {
-        console.log("🎰 Fetching recent wins from API...");
+        logger.api("GET", "/winners/recent", { limit: actualLimit });
         const response = await api.winners.getRecent(actualLimit);
-        console.log("🎰 Recent wins response:", response.data);
+        logger.debug("🎰 Recent wins response", { count: response.data?.length });
         return response.data || []; // Ensure we never return undefined
       } catch (error) {
-        console.error("🎰 Winners API failed:", error);
+        logger.error("🎰 Winners API failed", error);
         return []; // Return empty array instead of throwing to prevent undefined
       }
     },
@@ -56,13 +57,11 @@ export function useRecentWins(limit?: number) {
   // Direct WebSocket connection like test-ui for instant updates
   useEffect(() => {
     if (config.features.enableMockData) {
-      console.log(
-        "🎰 WebSocket wins: Mock data enabled, skipping WebSocket connection",
-      );
+      logger.debug("🎰 Mock data enabled, skipping WebSocket connection for wins");
       return;
     }
 
-    console.log("🎰 WebSocket wins: Setting up direct WebSocket connection");
+    logger.websocket("wins: Setting up direct connection");
     setIsConnecting(true);
 
     const wsUrl = env.apiUrl
@@ -72,7 +71,7 @@ export function useRecentWins(limit?: number) {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log("🎰 WebSocket wins: Connected directly!");
+      logger.websocket("wins: Connected");
       setIsLive(true);
       setIsConnecting(false);
     };
@@ -85,7 +84,10 @@ export function useRecentWins(limit?: number) {
           data.type === "casino_win" ||
           (data.type === "game_settled" && data.amount_won > 0)
         ) {
-          console.log("🎰 WebSocket wins: New win received", data);
+          logger.websocket("casino_win", {
+            game: data.game_type,
+            amount: data.amount_won,
+          });
 
           // Transform to our Winner format
           const newWin: Winner = {
@@ -95,7 +97,7 @@ export function useRecentWins(limit?: number) {
                 ? "Coin Flip"
                 : data.game_type || data.game || "Unknown",
             gameImage: "/games/coinflip.png",
-            amount: `${(data.amount_won || data.amount || 0).toFixed(4)} ${data.currency || "SOL"}`,
+            amount: formatSOLWithSymbol(data.amount_won || data.amount || 0, 4),
             timestamp: new Date(
               (data.timestamp || Date.now()) * 1000,
             ).toISOString(),
@@ -115,10 +117,9 @@ export function useRecentWins(limit?: number) {
               );
 
               if (exists) {
-                console.log(
-                  "🎰 WebSocket wins: Win already exists, skipping duplicate",
-                  data.tx_id || data.id,
-                );
+                logger.debug("🎰 Win already exists, skipping duplicate", {
+                  txId: data.tx_id || data.id,
+                });
                 return oldData;
               }
 
@@ -127,24 +128,24 @@ export function useRecentWins(limit?: number) {
           );
         }
       } catch (error) {
-        console.error("🎰 WebSocket wins: Error parsing message:", error);
+        logger.error("🎰 WebSocket wins: Error parsing message", error);
       }
     };
 
     ws.onerror = (error) => {
-      console.error("🎰 WebSocket wins: Connection error:", error);
+      logger.error("🎰 WebSocket wins: Connection error", error);
       setIsLive(false);
       setIsConnecting(false);
     };
 
     ws.onclose = () => {
-      console.log("🎰 WebSocket wins: Connection closed");
+      logger.websocket("wins: Connection closed");
       setIsLive(false);
       setIsConnecting(false);
     };
 
     return () => {
-      console.log("🎰 WebSocket wins: Cleaning up connection");
+      logger.websocket("wins: Cleaning up connection");
       if (ws.readyState === WebSocket.OPEN) {
         ws.close();
       }

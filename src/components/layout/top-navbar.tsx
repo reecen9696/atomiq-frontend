@@ -10,6 +10,8 @@ import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { PlayTimerModal } from "@/components/wallet/play-timer-modal";
 import { WalletManageModal } from "@/components/wallet/wallet-manage-modal";
 import { walletToast } from "@/lib/toast";
+import { formatSOL, formatAddress as utilFormatAddress } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 export function TopNavbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -30,14 +32,6 @@ export function TopNavbar() {
   useEffect(() => {
     setIsDropdownOpen(false);
   }, [isConnected]);
-
-  const formatBalance = useCallback((balance?: number | null) => {
-    return balance ? balance.toFixed(9) : "0.000000000";
-  }, []);
-
-  const formatAddress = useCallback((publicKey: string) => {
-    return `${publicKey.slice(0, 4)}....${publicKey.slice(-4)}`;
-  }, []);
 
   const handleWalletClick = useCallback(() => {
     setIsWalletManageModalOpen(true);
@@ -71,7 +65,7 @@ export function TopNavbar() {
       walletToast.disconnected();
       setIsDropdownOpen(false);
     } catch (error) {
-      console.error("Failed to disconnect:", error);
+      logger.error("Failed to disconnect:", error);
     }
   }, [walletDisconnect, authDisconnect]);
 
@@ -111,7 +105,7 @@ export function TopNavbar() {
                     style={{ width: "auto", height: "auto" }}
                   />
                   <span className="text-[14px] font-normal text-white font-['DM_Sans']">
-                    {vaultLoading ? "..." : formatBalance(vaultBalance)}
+                    {vaultLoading ? "..." : formatSOL(vaultBalance || 0, 9)}
                   </span>
                 </div>
                 <Image
@@ -214,7 +208,7 @@ export function TopNavbar() {
                     </div>
                     <span className="text-white text-[14px]">
                       {user?.publicKey
-                        ? formatAddress(user.publicKey)
+                        ? utilFormatAddress(user.publicKey, 4, 4)
                         : "Unknown"}
                     </span>
                   </div>

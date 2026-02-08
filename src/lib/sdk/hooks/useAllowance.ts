@@ -8,6 +8,7 @@ import {
 import type { SendTransactionOptions } from "@solana/wallet-adapter-base";
 import type { AtomikAllowanceService } from "../allowance/service";
 import type { AllowanceAccountState } from "@/services/solana/types";
+import { logger } from "@/lib/logger";
 
 // Simple cache for allowance PDA - balance tracked in auth store
 export interface PlaySessionData {
@@ -33,7 +34,7 @@ function savePlaySessionToStorage(
     const key = getPlaySessionStorageKey(userPublicKey);
     localStorage.setItem(key, JSON.stringify(sessionData));
   } catch (error) {
-    console.warn("Unable to save play session to localStorage:", error);
+    logger.warn("Unable to save play session to localStorage", { error });
   }
 }
 
@@ -49,7 +50,7 @@ function loadPlaySessionFromStorage(
 
     return JSON.parse(stored) as PlaySessionData;
   } catch (error) {
-    console.warn("Unable to load play session from localStorage:", error);
+    logger.warn("Unable to load play session from localStorage", { error });
     return null;
   }
 }
@@ -207,7 +208,7 @@ export function useAllowance(
           spender,
         });
       } catch (error) {
-        console.warn("Failed to get next nonce:", error);
+        logger.warn("Failed to get next nonce:", { error });
         return 0;
       }
     },
@@ -224,7 +225,7 @@ export function useAllowance(
           spender,
         });
       } catch (error) {
-        console.warn("Failed to find most recent active allowance:", error);
+        logger.warn("Failed to find most recent active allowance:", { error });
         return null;
       }
     },
@@ -272,11 +273,11 @@ export function useAllowance(
         };
       }
     } catch (error) {
-      console.log("⚠️ Error checking cached allowance:", error);
+      logger.debug("⚠️ Error checking cached allowance:", { error });
     }
 
     // Only use expensive scan as last resort
-    console.log("📡 No cached allowance found, using scan as fallback");
+    logger.debug("📡 No cached allowance found, using scan as fallback");
     return findMostRecentActive("casino");
   }, [userPublicKey, allowanceService, findMostRecentActive]);
 
@@ -325,14 +326,14 @@ export function useAllowance(
         try {
           const key = `atomik:lastAllowancePda:${userPublicKey}`;
           localStorage.setItem(key, result.allowancePda);
-          console.log(
+          logger.debug(
             "✅ Saved allowance PDA to localStorage:",
-            result.allowancePda,
+            { allowancePda: result.allowancePda },
           );
         } catch (storageError) {
-          console.warn(
+          logger.warn(
             "Unable to save allowance PDA to localStorage:",
-            storageError,
+            { error: storageError },
           );
         }
 
@@ -352,7 +353,7 @@ export function useAllowance(
             savePlaySessionData(playSessionData);
           }
         } catch (cacheError) {
-          console.warn("⚠️ Could not cache play session data:", cacheError);
+          logger.warn("⚠️ Could not cache play session data:", { error: cacheError });
         }
 
         // Refresh allowances after approval
@@ -433,7 +434,7 @@ export function useAllowance(
             savePlaySessionData(playSessionData);
           }
         } catch (cacheError) {
-          console.warn("⚠️ Could not cache play session data:", cacheError);
+          logger.warn("⚠️ Could not cache play session data:", { error: cacheError });
         }
 
         // Refresh allowances after extension

@@ -6,7 +6,8 @@ import { createWebSocketManager } from "@/lib/sdk/websocket/manager";
 import type { BlockUpdateMessage } from "@/lib/sdk/websocket/manager";
 import type { Block } from "@/mocks/blocks";
 import { createAtomikConfig } from "@/lib/sdk";
-import { env } from "@/config/env";
+import { env } from "@/config";
+import { logger } from "@/lib/logger";
 
 interface UseWebSocketBlocksState {
   blocks: Block[];
@@ -87,17 +88,14 @@ export function useWebSocketBlocks(
   const fetchInitialBlocks = useCallback(async () => {
     try {
       const apiUrl = env.apiUrl;
-      console.log(
-        "🔍 Fetching initial blocks from:",
-        `${apiUrl}/blocks?limit=${limit}`,
-      );
+      logger.api("GET", `/blocks?limit=${limit}`, { apiUrl });
 
       const response = await fetch(`${apiUrl}/blocks?limit=${limit}`);
-      console.log("📦 Blocks API response:", response.status, response.ok);
+      logger.api("GET", "/blocks", { status: response.status, ok: response.ok });
 
       if (response.ok) {
         const data = await response.json();
-        console.log("📦 Blocks API data:", data);
+        logger.debug("📦 Blocks API data received", { count: data.blocks?.length });
 
         if (data.blocks && Array.isArray(data.blocks)) {
           const initialBlocks = data.blocks.map((block: any) => ({
@@ -111,12 +109,12 @@ export function useWebSocketBlocks(
                 : Date.now() / 1000,
             ),
           }));
-          console.log("📦 Transformed initial blocks:", initialBlocks);
+          logger.debug("📦 Transformed initial blocks", { count: initialBlocks.length });
           setState((prev) => ({ ...prev, blocks: initialBlocks }));
         }
       }
     } catch (error) {
-      console.error("Failed to fetch initial blocks:", error);
+      logger.error("Failed to fetch initial blocks", error);
       setState((prev) => ({
         ...prev,
         error:
@@ -126,39 +124,31 @@ export function useWebSocketBlocks(
   }, [limit]);
 
   const connect = useCallback(async () => {
-    console.log("📦 WebSocket blocks: Starting connect process...");
+    logger.websocket("blocks: Starting connect process");
     setState((prev) => ({ ...prev, isConnecting: true, error: null }));
 
     try {
-      console.log("📦 WebSocket blocks: Creating WebSocket manager...");
       // Create WebSocket manager if not exists
       if (!wsManagerRef.current) {
-        console.log("📦 WebSocket blocks: Creating new Atomik config...");
+        logger.debug("📦 Creating WebSocket manager for blocks");
         const config = createAtomikConfig();
-        console.log("📦 WebSocket blocks: Config created:", config);
         wsManagerRef.current = createWebSocketManager(config);
-        console.log(
-          "📦 WebSocket blocks: Manager created:",
-          wsManagerRef.current,
-        );
       }
 
-      console.log("📦 WebSocket blocks: Connecting to casino streams...");
-      console.log(
-        "📦 WebSocket blocks: Using wallet public key:",
-        publicKey?.toBase58(),
-      );
+      logger.websocket("blocks: Connecting to casino streams", {
+        wallet: publicKey?.toBase58(),
+      });
       const connection = await wsManagerRef.current.connectToCasinoStreams(
         publicKey?.toBase58(),
       );
-      console.log("📦 WebSocket blocks: Connection established:", connection);
+      logger.websocket("blocks: Connection established");
 
-      console.log("📦 WebSocket blocks: Subscribing to new_block messages...");
+      logger.websocket("blocks: Subscribing to new_block messages");
       // Subscribe to new_block messages
       const unsubscribe = connection.subscribe<BlockUpdateMessage>(
         "new_block",
         (message) => {
-          console.log("📦 WebSocket new block:", {
+          logger.websocket("new_block", {
             height: message.height,
             hash: message.hash.slice(0, 8) + "...",
             txCount: message.tx_count,
@@ -189,7 +179,7 @@ export function useWebSocketBlocks(
       });
 
       const onError = connection.onError((error) => {
-        console.error("📦 WebSocket blocks: Connection error:", error);
+        logger.error("📦 WebSocket blocks: Connection error", error);
         setState((prev) => ({
           ...prev,
           error: "WebSocket connection error",
@@ -208,15 +198,11 @@ export function useWebSocketBlocks(
       };
 
       setState((prev) => ({ ...prev, isConnected: true, isConnecting: false }));
-      console.log(
-        "📦 WebSocket blocks: Successfully connected and subscribed!",
-      );
+      logger.websocket("blocks: Successfully connected and subscribed");
     } catch (error) {
-      console.error("📦 WebSocket blocks: Failed to connect:", error);
-      console.error(
-        "📦 WebSocket blocks: Error details:",
-        error instanceof Error ? error.stack : "No stack",
-      );
+      logger.error("📦 WebSocket blocks: Failed to connect", error, {
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       setState((prev) => ({
         ...prev,
         error: error instanceof Error ? error.message : "Connection failed",
@@ -242,7 +228,7 @@ export function useWebSocketBlocks(
   // Auto-connect when wallet changes - simplified approach like test-ui
   useEffect(() => {
     fetchInitialBlocks(); // Load initial blocks first
-    console.log("📦 WebSocket blocks: Re-enabling WebSocket connection");
+    logger.debug("📦 Re-enabling WebSocket connection for blocks");
     connect();
     return () => disconnect();
   }, [fetchInitialBlocks, connect, disconnect]);

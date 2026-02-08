@@ -3,13 +3,16 @@
 import { WinnerCard } from "@/components/ui/winner-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRecentWins } from "@/hooks";
-import { MAX_RECENT_WINS } from "@/constants";
+import { config } from "@/config";
+import { GradientOverlay } from "@/components/shared/gradient-overlay";
 
 interface RecentWinsProps {
   maxDisplay?: number;
 }
 
-export function RecentWins({ maxDisplay = MAX_RECENT_WINS }: RecentWinsProps) {
+export function RecentWins({
+  maxDisplay = config.pagination.limits.winners,
+}: RecentWinsProps) {
   const { data: winners, isLoading, error } = useRecentWins(maxDisplay);
 
   if (error) {
@@ -52,8 +55,7 @@ export function RecentWins({ maxDisplay = MAX_RECENT_WINS }: RecentWinsProps) {
           />
         ))}
       </div>
-      {/* Gradient fade overlay on right */}
-      <div className="absolute right-0 top-0 bottom-0 w-60 bg-gradient-to-l from-[#0F0E11] to-transparent pointer-events-none" />
+      <GradientOverlay position="right" size="w-60" />
     </section>
   );
 }

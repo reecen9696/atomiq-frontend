@@ -5,7 +5,9 @@ import { Providers } from "./providers";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { WalletModal } from "@/components/wallet/wallet-modal";
+import { WalletSync } from "@/components/providers/wallet-sync";
 import { Toaster } from "@/components/ui/toaster";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -39,11 +41,14 @@ export default function RootLayout({
     <html lang="en">
       <body className={dmSans.className}>
         <Providers>
-          <TopNavbar />
-          <div className="pb-20 sm:pb-0">{children}</div>
-          <MobileBottomNav />
-          <WalletModal />
-          <Toaster />
+          <WalletSync />
+          <ErrorBoundary level="page">
+            <TopNavbar />
+            <div className="pb-20 sm:pb-0">{children}</div>
+            <MobileBottomNav />
+            <WalletModal />
+            <Toaster />
+          </ErrorBoundary>
         </Providers>
       </body>
     </html>

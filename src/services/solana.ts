@@ -30,6 +30,7 @@ import type {
   CasinoAccountState,
   AllowanceAccountState,
 } from "./solana/types";
+import { logger } from "@/lib/logger";
 
 const RPC_URL =
   process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
@@ -357,7 +358,7 @@ export class SolanaService {
       const vaultPDA = this.pdaDerivation.deriveVaultPDA(userPubKey);
       return vaultPDA.toBase58();
     } catch (error) {
-      console.error("Failed to derive vault PDA:", error);
+      logger.error("Failed to derive vault PDA", error);
       throw error;
     }
   }
@@ -712,16 +713,13 @@ export class SolanaService {
       this.programId,
     );
 
-    console.log("🔍 Approve Allowance Transaction Details:");
-    console.log("  Nonce:", nonce.toString());
-    console.log("  Allowance PDA:", allowancePda.toBase58());
-    console.log("  Vault PDA:", vaultPda);
-    console.log(
-      "  Amount:",
-      (Number(params.amountLamports) / 1e9).toFixed(9),
-      "SOL",
-    );
-    console.log("  Duration:", params.durationSeconds.toString(), "seconds");
+    logger.transaction("approve_allowance_details", {
+      nonce: nonce.toString(),
+      allowancePda: allowancePda.toBase58(),
+      vaultPda: vaultPda,
+      amount: `${(Number(params.amountLamports) / 1e9).toFixed(9)} SOL`,
+      duration: `${params.durationSeconds.toString()} seconds`,
+    });
 
     const data = await buildIxData("approve_allowance_v2", [
       u64ToLeBytes(params.amountLamports),
@@ -750,7 +748,9 @@ export class SolanaService {
 
     // Add unique memo to prevent transaction deduplication
     const memoIx = createUniqueMemoInstruction();
-    console.log("  Memo instruction data:", memoIx.data.toString("utf-8"));
+    logger.transaction("memo_instruction", {
+      data: memoIx.data.toString("utf-8"),
+    });
 
     const tx = new Transaction().add(memoIx).add(ix);
 
@@ -758,8 +758,10 @@ export class SolanaService {
     addPriorityFeeInstructions(tx, 50000); // Higher priority fee for allowance transactions
     tx.feePayer = params.user;
 
-    console.log("  Total instructions in tx:", tx.instructions.length);
-    console.log("  Fee payer:", params.user.toBase58());
+    logger.transaction("transaction_prepared", {
+      totalInstructions: tx.instructions.length,
+      feePayer: params.user.toBase58(),
+    });
 
     try {
       // First try with preflight to get detailed error, then retry without if needed
@@ -770,7 +772,7 @@ export class SolanaService {
       });
 
       // Use more robust confirmation with polling and longer timeout
-      console.log("⏳ Confirming transaction...");
+      logger.debug("⏳ Confirming transaction", { signature });
       await waitForConfirmation(
         {
           connection,
@@ -780,19 +782,19 @@ export class SolanaService {
         { timeoutMs: 90_000 },
       ); // 90 second timeout for devnet
 
-      console.log("✅ Allowance approved! Signature:", signature);
+      logger.transaction("allowance_approved", { signature, emoji: "✅" });
       return {
         signature,
         allowancePda: allowancePda.toBase58(),
         usedNonce: nonce,
       };
     } catch (err) {
-      console.error("❌ Allowance approval failed:", err);
+      logger.error("❌ Allowance approval failed", err);
 
       // If it's "already processed", try again with skipPreflight
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.toLowerCase().includes("already been processed")) {
-        console.log("🔄 Retrying with skipPreflight: true...");
+        logger.debug("🔄 Retrying with skipPreflight: true");
         try {
           const signature = await params.sendTransaction(tx, connection, {
             skipPreflight: true,
@@ -807,14 +809,14 @@ export class SolanaService {
             },
             { timeoutMs: 90_000 },
           );
-          console.log("✅ Allowance approved! Signature:", signature);
+          logger.transaction("allowance_approved_retry", { signature });
           return {
             signature,
             allowancePda: allowancePda.toBase58(),
             usedNonce: nonce,
           };
         } catch (retryErr) {
-          console.error("❌ Retry also failed:", retryErr);
+          logger.error("❌ Retry also failed", retryErr);
           throw retryErr;
         }
       }

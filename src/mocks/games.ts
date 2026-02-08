@@ -1,11 +1,25 @@
 import type { GameCardProps } from "@/components/ui/game-card";
+import { getAvailableGames, getAllGames } from "@/config/games";
 
 /**
  * Mock data for games
- * TODO: Replace with actual API data
+ * Now uses the centralized game registry
  */
-export const mockGames: GameCardProps[] = Array.from({ length: 7 }, (_, i) => ({
-  id: `game-${i + 1}`,
-  title: `Game ${i + 1}`,
-  image: `/games/game${i + 1}.png`,
+export const mockGames: GameCardProps[] = getAllGames().map((game) => ({
+  id: game.id,
+  title: game.title,
+  image: game.image,
+  slug: game.slug,
 }));
+
+/**
+ * Get only enabled/available games
+ */
+export const availableGames: GameCardProps[] = getAvailableGames().map(
+  (game) => ({
+    id: game.id,
+    title: game.title,
+    image: game.image,
+    slug: game.slug,
+  }),
+);

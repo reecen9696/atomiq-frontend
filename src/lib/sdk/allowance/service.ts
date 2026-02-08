@@ -9,6 +9,7 @@ import type { SendTransactionOptions } from "@solana/wallet-adapter-base";
 import { solanaService } from "@/services/solana";
 import { u64ToLeBytes } from "@/services/solana/utils";
 import type { AllowanceAccountState } from "@/services/solana/types";
+import { logger } from "@/lib/logger";
 
 type SendTransactionFn = (
   transaction: Transaction | VersionedTransaction,
@@ -163,7 +164,7 @@ export class AtomikAllowanceService implements AllowanceOperations {
       });
       return Number(nonce);
     } catch (error) {
-      console.warn("Error fetching allowance nonce:", error);
+      logger.warn("Error fetching allowance nonce", { error });
       return 0;
     }
   }
@@ -211,7 +212,7 @@ export class AtomikAllowanceService implements AllowanceOperations {
     const { userPublicKey, amount, duration = 10000 } = params;
     const userPubkey = new PublicKey(userPublicKey);
 
-    console.log("🔐 Approving allowance with params:", {
+    logger.transaction("allowance-approve", {
       user: userPublicKey,
       amount,
       duration,
@@ -228,7 +229,8 @@ export class AtomikAllowanceService implements AllowanceOperations {
       connection: params.connection || this.connection,
     });
 
-    console.log("✅ Allowance approval result from solanaService:", {
+    logger.transaction("allowance-approve", {
+      status: "success",
       signature: result.signature,
       allowancePda: result.allowancePda,
       usedNonce: result.usedNonce,
@@ -241,18 +243,16 @@ export class AtomikAllowanceService implements AllowanceOperations {
         result.allowancePda,
         conn,
       );
-      console.log("📊 On-chain allowance verification:", {
+      logger.debug("📊 On-chain allowance verification", {
         exists: allowanceInfo.exists,
         state: allowanceInfo.state,
       });
 
       if (!allowanceInfo.exists) {
-        console.warn(
-          "⚠️ WARNING: Allowance transaction confirmed but account not found on-chain!",
-        );
+        logger.warn("⚠️ WARNING: Allowance transaction confirmed but account not found on-chain!");
       }
     } catch (error) {
-      console.error("❌ Failed to verify allowance on-chain:", error);
+      logger.error("❌ Failed to verify allowance on-chain", error);
     }
 
     return {
@@ -347,7 +347,7 @@ export class AtomikAllowanceService implements AllowanceOperations {
 
       return null;
     } catch (error) {
-      console.warn("Failed to check cached allowance:", error);
+      logger.warn("Failed to check cached allowance", { error });
       return null;
     }
   }

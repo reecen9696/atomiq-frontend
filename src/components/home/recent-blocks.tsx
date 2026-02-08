@@ -7,6 +7,7 @@ import { useRecentBlocks } from "@/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LiveStatusIndicator } from "@/components/ui/live-status-indicator";
 import type { Block } from "@/mocks/blocks";
+import { logger } from "@/lib/logger";
 
 interface RecentBlocksProps {
   limit?: number;
@@ -22,7 +23,7 @@ export function RecentBlocks({ limit = 5 }: RecentBlocksProps) {
   } = useRecentBlocks(limit);
 
   // Add debugging to see what data we're getting
-  console.log("🔍 RecentBlocks component render:", {
+  logger.debug("🔍 RecentBlocks component render:", {
     blocks,
     blocksLength: blocks?.length,
     isLoading,

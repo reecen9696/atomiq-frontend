@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode, useState, useEffect } from "react";
 import {
   ConnectionProvider,
   WalletProvider as SolanaWalletProvider,
@@ -13,6 +13,7 @@ import {
   TorusWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
 import { clusterApiUrl } from "@solana/web3.js";
+import type { Adapter } from "@solana/wallet-adapter-base";
 
 // Import wallet adapter styles
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -39,7 +40,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
     return clusterApiUrl(network);
   }, [network]);
 
-  // Initialize wallet adapters
+  // Initialize wallet adapters once and keep stable reference
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
@@ -48,11 +49,20 @@ export function WalletProvider({ children }: WalletProviderProps) {
     ],
     [network],
   );
+  
+  // Filter wallets on the client side only, after mount
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <SolanaWalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>{children}</WalletModalProvider>
+      <SolanaWalletProvider wallets={mounted ? wallets : []} autoConnect={true}>
+        <WalletModalProvider>
+          {children}
+        </WalletModalProvider>
       </SolanaWalletProvider>
     </ConnectionProvider>
   );

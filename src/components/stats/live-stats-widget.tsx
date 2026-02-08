@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAtomikWebSocket } from "@/components/providers/sdk-provider";
 import { useWebSocket } from "@/lib/sdk/hooks";
+import { logger } from "@/lib/logger";
 
 export function LiveStatsWidget() {
   const wsManager = useAtomikWebSocket();
@@ -11,7 +12,7 @@ export function LiveStatsWidget() {
 
   useEffect(() => {
     // Connect on mount
-    connect().catch(console.error);
+    connect().catch(logger.error);
 
     // Disconnect on unmount
     return () => {

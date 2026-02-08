@@ -6,6 +6,7 @@ import type {
 } from "../api/client";
 import { createAllowanceService } from "../allowance/service";
 import { solanaService } from "@/services/solana";
+import { logger } from "@/lib/logger";
 
 export interface BettingOperations {
   // Betting operations
@@ -63,9 +64,7 @@ export class AtomikBettingService implements BettingOperations {
     // The allowancePda should be passed from the calling code (wallet modal state)
     // Backend will validate the allowance and return appropriate error if invalid
     if (!allowancePda) {
-      console.warn(
-        "No allowancePda provided - bet may fail if allowance is required",
-      );
+      logger.warn("No allowancePda provided - bet may fail if allowance is required");
     }
 
     // Make API call to place bet using test-ui format with allowance PDA
@@ -163,7 +162,7 @@ export class AtomikBettingService implements BettingOperations {
           return result;
         }
       } catch (error) {
-        console.warn("Error polling for game result:", error);
+        logger.warn("Error polling for game result:", { error });
       }
 
       // Wait before next poll
