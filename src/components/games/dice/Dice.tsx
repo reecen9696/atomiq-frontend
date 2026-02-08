@@ -553,12 +553,12 @@ const Dice: React.FC = () => {
       }
 
       const animContainer =
-        document.getElementsByClassName("DiceAnimContainer")[0];
+        document.getElementsByClassName("DiceAnimContainer")[0] as HTMLElement;
       if (settingData.animation && animContainer) {
         // Remove any existing animation class first
         animContainer.classList.remove("DiceAnimate");
         // Force a reflow to ensure the class removal takes effect
-        animContainer.offsetHeight;
+        void animContainer.offsetHeight;
         // Add the animation class
         animContainer.classList.add("DiceAnimate");
       }
