@@ -47,6 +47,9 @@ export {
   retryWithBackoff,
 } from "./error-handling";
 
+// Logging
+export { logger, type LogContext, type LogLevel, type LogOptions } from "./logger";
+
 // Performance utilities
 export {
   createMemoComponent,

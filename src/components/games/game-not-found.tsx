@@ -19,15 +19,17 @@ export function GameNotFound({ requestedGame }: GameNotFoundProps) {
     <div className="flex min-h-[650px] items-center justify-center">
       <div className="max-w-2xl text-center px-4">
         <div className="mb-6 text-8xl">🎰</div>
-        
-        <h1 className="mb-3 text-3xl font-bold text-white">
-          Game Not Found
-        </h1>
-        
+
+        <h1 className="mb-3 text-3xl font-bold text-white">Game Not Found</h1>
+
         <p className="mb-2 text-lg text-white/80">
-          The game <span className="font-mono text-primary-purple">&quot;{requestedGame}&quot;</span> doesn&apos;t exist or isn&apos;t available yet.
+          The game{" "}
+          <span className="font-mono text-primary-purple">
+            &quot;{requestedGame}&quot;
+          </span>{" "}
+          doesn&apos;t exist or isn&apos;t available yet.
         </p>
-        
+
         <p className="mb-8 text-white/60">
           Try one of our available games below or head back to the homepage.
         </p>
@@ -39,7 +41,7 @@ export function GameNotFound({ requestedGame }: GameNotFoundProps) {
           >
             Go to Homepage
           </Link>
-          
+
           <Link
             href="/casino"
             className="rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-white transition-colors hover:bg-white/10"

@@ -15,9 +15,11 @@ export const mockGames: GameCardProps[] = getAllGames().map((game) => ({
 /**
  * Get only enabled/available games
  */
-export const availableGames: GameCardProps[] = getAvailableGames().map((game) => ({
-  id: game.id,
-  title: game.title,
-  image: game.image,
-  slug: game.slug,
-}));
+export const availableGames: GameCardProps[] = getAvailableGames().map(
+  (game) => ({
+    id: game.id,
+    title: game.title,
+    image: game.image,
+    slug: game.slug,
+  }),
+);

@@ -25,14 +25,14 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatSOL(amount: number | string, decimals = 3): string {
   const num = typeof amount === "string" ? parseFloat(amount) : amount;
-  
+
   if (isNaN(num)) return "0.000";
-  
+
   // For very small amounts, show more precision
   if (num > 0 && num < 0.001) {
     return num.toFixed(6).replace(/\.?0+$/, "");
   }
-  
+
   // Use Intl for proper number formatting with commas
   return new Intl.NumberFormat("en-US", {
     minimumFractionDigits: decimals,
@@ -44,7 +44,10 @@ export function formatSOL(amount: number | string, decimals = 3): string {
  * Format SOL amount with symbol
  * @example formatSOLWithSymbol(1.23) => "1.230 SOL"
  */
-export function formatSOLWithSymbol(amount: number | string, decimals = 3): string {
+export function formatSOLWithSymbol(
+  amount: number | string,
+  decimals = 3,
+): string {
   return `${formatSOL(amount, decimals)} SOL`;
 }
 
@@ -56,7 +59,7 @@ export function formatSOLWithSymbol(amount: number | string, decimals = 3): stri
 export function formatAddress(
   address: string,
   startChars = 4,
-  endChars = 4
+  endChars = 4,
 ): string {
   if (!address || address.length <= startChars + endChars) {
     return address || "";
@@ -82,9 +85,9 @@ export function formatHash(hash: string, startChars = 8, endChars = 8): string {
  */
 export function formatNumber(value: number | string, decimals = 0): string {
   const num = typeof value === "string" ? parseFloat(value) : value;
-  
+
   if (isNaN(num)) return "0";
-  
+
   return new Intl.NumberFormat("en-US", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -106,15 +109,15 @@ export function formatPercentage(value: number, decimals = 2): string {
  */
 export function formatTimeAgo(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  
+
   if (seconds < 60) return `${seconds} second${seconds !== 1 ? "s" : ""} ago`;
-  
+
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
-  
+
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-  
+
   const days = Math.floor(hours / 24);
   return `${days} day${days !== 1 ? "s" : ""} ago`;
 }
@@ -175,16 +178,16 @@ export function clamp(value: number, min: number, max: number): number {
  */
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
-  wait: number
+  wait: number,
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
-  
+
   return function executedFunction(...args: Parameters<T>) {
     const later = () => {
       timeout = null;
       func(...args);
     };
-    
+
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };

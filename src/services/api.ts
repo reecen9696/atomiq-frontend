@@ -2,7 +2,12 @@ import { config } from "@/config";
 import type { Winner, StatCard, ApiResponse, PaginatedResponse } from "@/types";
 import type { Block } from "@/mocks/blocks";
 import { ErrorFactory, AppError, retryWithBackoff } from "@/lib/error-handling";
-import { formatSOLWithSymbol, formatNumber, formatPercentage, formatHash } from "@/lib/utils";
+import {
+  formatSOLWithSymbol,
+  formatNumber,
+  formatPercentage,
+  formatHash,
+} from "@/lib/utils";
 
 /**
  * Enhanced API Client
@@ -155,7 +160,7 @@ export const api = {
 
       // Log raw games response for debugging
       console.log("🎰 Raw games response:", gamesResponse.games.slice(0, 5));
-      
+
       // Transform games to winners format, filtering only wins
       const winners = gamesResponse.games
         .filter((game: any) => game.outcome === "win")
@@ -164,7 +169,7 @@ export const api = {
           // Map game types to proper display names
           let gameName = game.game_type;
           let gameImage = "/games/coinflip.png";
-          
+
           switch (game.game_type?.toLowerCase()) {
             case "coinflip":
               gameName = "Coin Flip";
@@ -185,7 +190,7 @@ export const api = {
             default:
               gameName = game.game_type || "Unknown";
           }
-          
+
           return {
             id: game.game_id || game.tx_id.toString(),
             gameName,
@@ -194,7 +199,7 @@ export const api = {
             timestamp: new Date(game.timestamp).toISOString(),
           };
         });
-      
+
       console.log("🎰 Transformed winners:", winners.slice(0, 3));
 
       return {

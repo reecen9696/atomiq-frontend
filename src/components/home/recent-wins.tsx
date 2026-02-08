@@ -10,7 +10,9 @@ interface RecentWinsProps {
   maxDisplay?: number;
 }
 
-export function RecentWins({ maxDisplay = config.pagination.limits.winners }: RecentWinsProps) {
+export function RecentWins({
+  maxDisplay = config.pagination.limits.winners,
+}: RecentWinsProps) {
   const { data: winners, isLoading, error } = useRecentWins(maxDisplay);
 
   if (error) {

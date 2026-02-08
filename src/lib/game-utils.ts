@@ -1,7 +1,7 @@
 /**
  * Game Utilities
  * Helper functions for game-related operations
- * 
+ *
  * Note: Most formatting utilities have been moved to lib/utils.ts
  * This file contains only game-specific logic
  */
@@ -37,19 +37,19 @@ export function getGameRoute(slug: string): string {
 export function validateBetAmount(
   amount: number,
   min: number,
-  max: number
+  max: number,
 ): { valid: boolean; error?: string } {
   if (isNaN(amount) || amount <= 0) {
     return { valid: false, error: "Bet amount must be greater than 0" };
   }
-  
+
   if (amount < min) {
     return { valid: false, error: `Minimum bet is ${min} SOL` };
   }
-  
+
   if (amount > max) {
     return { valid: false, error: `Maximum bet is ${max} SOL` };
   }
-  
+
   return { valid: true };
 }

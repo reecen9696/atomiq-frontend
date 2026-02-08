@@ -20,15 +20,17 @@ export function MobileBottomNav() {
       <div className="mx-auto max-w-7xl px-3 pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-5 py-2">
           {ITEMS.map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
-            
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/" && pathname?.startsWith(item.href));
+
             return (
               <Link
                 key={item.key}
                 href={item.href}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-2 text-center transition-colors",
-                  isActive ? "text-white" : "text-white/70 hover:text-white/90"
+                  isActive ? "text-white" : "text-white/70 hover:text-white/90",
                 )}
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
@@ -38,7 +40,7 @@ export function MobileBottomNav() {
                     "h-10 w-10 rounded-full border transition-colors",
                     isActive
                       ? "bg-primary-purple/20 border-primary-purple"
-                      : "bg-casino-card border-casino-border"
+                      : "bg-casino-card border-casino-border",
                   )}
                 />
                 <span className="text-xs font-medium">{item.label}</span>

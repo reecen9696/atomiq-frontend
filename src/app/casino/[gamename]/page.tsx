@@ -18,7 +18,7 @@ export default function CasinoGamePage() {
   const [activeTab, setActiveTab] = useState("latest-bets");
   const params = useParams();
   const gamename = params.gamename as string;
-  
+
   // Get game configuration from registry
   const game = getGameBySlug(gamename);
   const availableGames = getAvailableGames();

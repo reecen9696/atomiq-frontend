@@ -1,13 +1,13 @@
 /**
  * @deprecated This file is deprecated. Import from @/config instead.
- * 
+ *
  * Application Constants
  * All app-wide constants and configuration values
- * 
+ *
  * Migration guide:
  * - Replace `import { X } from "@/constants"` with `import { X } from "@/config"`
  * - Or use the new structured config: `import { config } from "@/config"`
- * 
+ *
  * Examples:
  * - MAX_RECENT_WINS → config.pagination.limits.winners
  * - POLLING_INTERVALS.STATS → config.polling.intervals.stats

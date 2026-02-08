@@ -8,37 +8,37 @@ import { ComponentType } from "react";
 export interface GameConfig {
   /** Unique game identifier */
   id: string;
-  
+
   /** URL-friendly slug for routing */
   slug: string;
-  
+
   /** Display name */
   title: string;
-  
+
   /** Display description */
   description: string;
-  
+
   /** Game thumbnail image path */
   image: string;
-  
+
   /** Game category */
   category: string;
-  
+
   /** Minimum bet amount in SOL */
   minBet: number;
-  
+
   /** Maximum bet amount in SOL */
   maxBet: number;
-  
+
   /** Whether the game is currently available */
   enabled: boolean;
-  
+
   /** Whether this is a featured game */
   featured: boolean;
-  
+
   /** Component to render the game (loaded dynamically) */
   component?: ComponentType<any>;
-  
+
   /** Route path for the game */
   route: string;
 }
@@ -61,7 +61,7 @@ export const GAMES: Record<string, GameConfig> = {
     featured: true,
     route: "/casino/coinflip",
   },
-  
+
   dice: {
     id: "dice",
     slug: "dice",
@@ -75,7 +75,7 @@ export const GAMES: Record<string, GameConfig> = {
     featured: true,
     route: "/casino/dice",
   },
-  
+
   // Placeholder games for future implementation
   slots: {
     id: "slots",
@@ -90,7 +90,7 @@ export const GAMES: Record<string, GameConfig> = {
     featured: false,
     route: "/casino/slots",
   },
-  
+
   roulette: {
     id: "roulette",
     slug: "roulette",
@@ -104,7 +104,7 @@ export const GAMES: Record<string, GameConfig> = {
     featured: false,
     route: "/casino/roulette",
   },
-  
+
   blackjack: {
     id: "blackjack",
     slug: "blackjack",
@@ -118,7 +118,7 @@ export const GAMES: Record<string, GameConfig> = {
     featured: false,
     route: "/casino/blackjack",
   },
-  
+
   plinko: {
     id: "plinko",
     slug: "plinko",
@@ -132,7 +132,7 @@ export const GAMES: Record<string, GameConfig> = {
     featured: false,
     route: "/casino/plinko",
   },
-  
+
   crash: {
     id: "crash",
     slug: "crash",
@@ -196,7 +196,7 @@ export function isGameAvailable(slug: string): boolean {
  */
 export function getGamesByCategory(category: string): GameConfig[] {
   return Object.values(GAMES).filter(
-    (game) => game.enabled && game.category === category
+    (game) => game.enabled && game.category === category,
   );
 }
 
@@ -206,7 +206,10 @@ export function getGamesByCategory(category: string): GameConfig[] {
  */
 export function formatGameTitle(slug: string): string {
   const game = getGameBySlug(slug);
-  return game?.title || slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return (
+    game?.title ||
+    slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
 }
 
 /**

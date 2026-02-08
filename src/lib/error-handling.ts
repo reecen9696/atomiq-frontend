@@ -4,6 +4,7 @@
  */
 
 import { env } from "@/config";
+import { logger } from "./logger";
 
 // Error types
 export enum ErrorCode {
@@ -169,20 +170,25 @@ export class ErrorHandler {
       );
     }
 
-    // Log error in development
-    if (env.nodeEnv === "development") {
-      console.error("Error handled:", {
-        error: appError.toJSON(),
-        context,
-      });
-    }
+    // Log error using centralized logger
+    logger.error(
+      "Error handled",
+      error,
+      {
+        code: appError.code,
+        severity: appError.severity,
+        userMessage: appError.userMessage,
+        ...appError.context,
+        ...context,
+      }
+    );
 
     // Report error if reporter is set
     if (this.errorReporter && appError.severity !== ErrorSeverity.LOW) {
       try {
         this.errorReporter(appError);
       } catch (reportError) {
-        console.error("Error reporting failed:", reportError);
+        logger.error("Error reporting failed", reportError);
       }
     }
 

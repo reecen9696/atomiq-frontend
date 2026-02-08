@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { config, env } from "@/config";
 import { mockStatCards } from "@/mocks";
-import { formatNumber, formatPercentage, formatSOLWithSymbol } from "@/lib/utils";
+import {
+  formatNumber,
+  formatPercentage,
+  formatSOLWithSymbol,
+} from "@/lib/utils";
 
 /**
  * Hook for fetching current statistics via direct API call like test-ui

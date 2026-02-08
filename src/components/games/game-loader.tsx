@@ -10,16 +10,22 @@ import { GameConfig } from "@/config/games";
  * Uses dynamic imports for code splitting
  */
 const GAME_COMPONENTS: Record<string, ComponentType<any>> = {
-  coinflip: dynamic(() => import("@/components/games/coinflip-game").then(mod => ({ default: mod.CoinflipGame })), {
-    loading: () => <GameLoadingState />,
-    ssr: false,
-  }),
-  
+  coinflip: dynamic(
+    () =>
+      import("@/components/games/coinflip-game").then((mod) => ({
+        default: mod.CoinflipGame,
+      })),
+    {
+      loading: () => <GameLoadingState />,
+      ssr: false,
+    },
+  ),
+
   dice: dynamic(() => import("@/components/games/dice/Dice"), {
     loading: () => <GameLoadingState />,
     ssr: false,
   }),
-  
+
   // Future games can be added here as they're implemented
   // Example:
   // slots: dynamic(() => import("@/components/games/slots-game").then(mod => ({ default: mod.SlotsGame })), {

@@ -9,7 +9,7 @@ Edit `/src/config/games.ts` and add your game to the `GAMES` object:
 ```typescript
 export const GAMES: Record<string, GameConfig> = {
   // ... existing games
-  
+
   yourGame: {
     id: "your-game",
     slug: "your-game",
@@ -19,8 +19,8 @@ export const GAMES: Record<string, GameConfig> = {
     category: "classic", // or "slots", "table", "arcade"
     minBet: 0.01,
     maxBet: 100,
-    enabled: true,      // Set to false while developing
-    featured: false,    // Set to true for homepage carousel
+    enabled: true, // Set to false while developing
+    featured: false, // Set to true for homepage carousel
     route: "/casino/your-game",
   },
 };
@@ -49,10 +49,10 @@ Edit `/src/components/games/game-loader.tsx` and add your game to the imports:
 ```typescript
 const GAME_COMPONENTS: Record<string, ComponentType<any>> = {
   // ... existing games
-  
-  "your-game": dynamic(() => 
-    import("@/components/games/your-game").then(mod => ({ 
-      default: mod.YourGame 
+
+  "your-game": dynamic(() =>
+    import("@/components/games/your-game").then(mod => ({
+      default: mod.YourGame
     })), {
       loading: () => <GameLoadingState />,
       ssr: false,
@@ -83,7 +83,7 @@ Once tested, set `enabled: true` in the game configuration to make it available 
 ✅ **Loading States** - Shows loading spinner while component loads  
 ✅ **Type Safety** - Full TypeScript support  
 ✅ **Metadata** - Min/max bets, categories, descriptions  
-✅ **Discovery** - Game appears in carousels and listings automatically  
+✅ **Discovery** - Game appears in carousels and listings automatically
 
 ## Game Categories
 
@@ -95,19 +95,19 @@ Once tested, set `enabled: true` in the game configuration to make it available 
 ## Helper Functions Available
 
 ```typescript
-import { 
+import {
   getGameBySlug,
   getAvailableGames,
   getFeaturedGames,
   isGameAvailable,
-  formatGameTitle 
+  formatGameTitle,
 } from "@/config/games";
 
-import { 
+import {
   slugify,
   getGameRoute,
   formatSOL,
-  validateBetAmount 
+  validateBetAmount,
 } from "@/lib/game-utils";
 ```
 

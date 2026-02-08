@@ -8,6 +8,7 @@ import { createWebSocketManager } from "@/lib/sdk/websocket/manager";
 import type { SettlementFailedMessage } from "@/lib/sdk/websocket/manager";
 import { bettingToast } from "@/lib/toast";
 import { createAtomikConfig } from "@/lib/sdk";
+import { logger } from "@/lib/logger";
 
 export function useSettlementErrors() {
   const { publicKey } = useWallet();
@@ -37,7 +38,7 @@ export function useSettlementErrors() {
         const unsubscribe = connection.subscribe<SettlementFailedMessage>(
           "settlement_failed",
           (message) => {
-            console.log("📨 WebSocket message: settlement_failed", {
+            logger.websocket("settlement_failed", {
               transactionId: message.transaction_id,
               playerAddress: message.player_address,
               currentWallet: publicKey?.toBase58(),
@@ -55,7 +56,7 @@ export function useSettlementErrors() {
           clearInterval(cleanupInterval);
         };
       } catch (error) {
-        console.error("Failed to initialize settlement error handling:", error);
+        logger.error("Failed to initialize settlement error handling", error);
       }
     };
 
@@ -67,7 +68,7 @@ export function useSettlementErrors() {
   }, [publicKey, cleanupOldBets]);
 
   const handleSettlementFailure = (message: SettlementFailedMessage) => {
-    console.log("🔍 Settlement failure message:", {
+    logger.debug("🔍 Settlement failure message", {
       transactionId: message.transaction_id,
       playerAddress: message.player_address,
       currentWallet: publicKey?.toBase58(),
@@ -79,7 +80,7 @@ export function useSettlementErrors() {
 
     // Only handle failures for the current user
     if (message.player_address !== publicKey?.toBase58()) {
-      console.log("⏭️ Skipping settlement failure - not for current user");
+      logger.debug("⏭️ Skipping settlement failure - not for current user");
       return;
     }
 
@@ -87,14 +88,13 @@ export function useSettlementErrors() {
     const pendingBet = getPendingBetByTransactionId(message.transaction_id);
 
     if (!pendingBet) {
-      console.warn(
-        "⚠️ No pending bet found for transaction:",
-        message.transaction_id,
-      );
+      logger.warn("⚠️ No pending bet found for transaction", {
+        transactionId: message.transaction_id,
+      });
       return;
     }
 
-    console.log("🔄 Processing settlement failure:", {
+    logger.debug("🔄 Processing settlement failure", {
       gameId: pendingBet.gameId,
       betAmount: pendingBet.amount,
       revertAmount: pendingBet.amount,
@@ -114,7 +114,7 @@ export function useSettlementErrors() {
     // Remove the pending bet since we've handled the failure
     removePendingBet(pendingBet.gameId);
 
-    console.log("✅ Settlement failure processed successfully");
+    logger.debug("✅ Settlement failure processed successfully");
   };
 
   // Cleanup WebSocket on unmount
