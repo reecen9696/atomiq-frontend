@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { solanaService } from "@/services/solana";
+import { logger } from "@/lib/logger";
 
 export function useVaultBalance() {
   const { publicKey } = useWallet();
@@ -45,7 +46,7 @@ export function useVaultBalance() {
         }
       }
     } catch (err) {
-      console.error("Failed to fetch vault balance:", err);
+      logger.error("Failed to fetch vault balance:", err);
       const errorMessage =
         (err as Error).message || "Failed to fetch vault balance";
       setError(errorMessage);

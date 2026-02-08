@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { createAtomikSDK, type AtomikSDK } from "@/lib/sdk";
+import { logger } from "@/lib/logger";
 
 interface SDKProviderProps {
   children: ReactNode;
@@ -18,7 +19,7 @@ export function SDKProvider({ children }: SDKProviderProps) {
     try {
       return createAtomikSDK();
     } catch (error) {
-      console.error("Failed to initialize Atomik SDK:", error);
+      logger.error("Failed to initialize Atomik SDK:", error);
       return null;
     }
   }, []);

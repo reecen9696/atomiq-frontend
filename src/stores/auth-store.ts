@@ -76,11 +76,10 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
-      // Skip hydration from localStorage to always start logged out
-      skipHydration: true,
+      // Persist user session across page refreshes
       partialize: (state) => ({
-        isConnected: false, // Never persist connected state
-        user: null, // Never persist user
+        isConnected: state.isConnected,
+        user: state.user,
       }),
     },
   ),

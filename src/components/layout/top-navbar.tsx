@@ -11,6 +11,7 @@ import { PlayTimerModal } from "@/components/wallet/play-timer-modal";
 import { WalletManageModal } from "@/components/wallet/wallet-manage-modal";
 import { walletToast } from "@/lib/toast";
 import { formatSOL, formatAddress as utilFormatAddress } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 export function TopNavbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -64,7 +65,7 @@ export function TopNavbar() {
       walletToast.disconnected();
       setIsDropdownOpen(false);
     } catch (error) {
-      console.error("Failed to disconnect:", error);
+      logger.error("Failed to disconnect:", error);
     }
   }, [walletDisconnect, authDisconnect]);
 

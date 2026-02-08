@@ -201,7 +201,7 @@ export const api = {
           };
         });
 
-      console.log("🎰 Transformed winners:", winners.slice(0, 3));
+      logger.debug("🎰 Transformed winners:", { winners: winners.slice(0, 3) });
 
       return {
         data: winners,
