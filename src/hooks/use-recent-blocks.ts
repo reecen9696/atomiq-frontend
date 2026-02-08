@@ -5,6 +5,7 @@ import { config, env } from "@/config";
 import { handleQueryError } from "@/lib/error-handling";
 import { mockBlocks } from "@/mocks";
 import { formatHash } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook for fetching recent blockchain blocks with direct WebSocket updates
@@ -30,11 +31,11 @@ export function useRecentBlocks(limit?: number) {
 
       try {
         const response = await api.blocks.getRecent(actualLimit);
-        console.log("📦 Blocks query response:", response);
+        logger.debug("📦 Blocks query response", { count: response.data?.length });
         // The API service already transforms data, so we use response.data directly
         return response.data || [];
       } catch (error) {
-        console.warn("Blocks API failed, returning empty array:", error);
+        logger.warn("Blocks API failed, returning empty array", { error });
         return []; // Return empty array instead of throwing to prevent undefined
       }
     },
@@ -53,13 +54,11 @@ export function useRecentBlocks(limit?: number) {
   // Direct WebSocket connection like test-ui for instant updates
   useEffect(() => {
     if (config.features.enableMockData) {
-      console.log(
-        "📦 WebSocket blocks: Mock data enabled, skipping WebSocket connection",
-      );
+      logger.debug("📦 Mock data enabled, skipping WebSocket connection for blocks");
       return;
     }
 
-    console.log("📦 WebSocket blocks: Setting up direct WebSocket connection");
+    logger.websocket("blocks: Setting up direct connection");
     setIsConnecting(true);
 
     const wsUrl = env.apiUrl
@@ -69,7 +68,7 @@ export function useRecentBlocks(limit?: number) {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log("📦 WebSocket blocks: Connected directly!");
+      logger.websocket("blocks: Connected");
       setIsLive(true);
       setIsConnecting(false);
     };
@@ -79,7 +78,10 @@ export function useRecentBlocks(limit?: number) {
         const data = JSON.parse(event.data);
 
         if (data.type === "new_block") {
-          console.log("📦 WebSocket blocks: New block received", data);
+          logger.websocket("new_block", {
+            height: data.height,
+            txCount: data.tx_count,
+          });
 
           // Transform to our Block format
           const newBlock = {
@@ -104,10 +106,9 @@ export function useRecentBlocks(limit?: number) {
               );
 
               if (exists) {
-                console.log(
-                  "📦 WebSocket blocks: Block already exists, skipping duplicate",
-                  newBlock.blockNumber,
-                );
+                logger.debug("📦 Block already exists, skipping duplicate", {
+                  blockNumber: newBlock.blockNumber,
+                });
                 return oldData;
               }
 
@@ -116,24 +117,24 @@ export function useRecentBlocks(limit?: number) {
           );
         }
       } catch (error) {
-        console.error("📦 WebSocket blocks: Error parsing message:", error);
+        logger.error("📦 WebSocket blocks: Error parsing message", error);
       }
     };
 
     ws.onerror = (error) => {
-      console.error("📦 WebSocket blocks: Connection error:", error);
+      logger.error("📦 WebSocket blocks: Connection error", error);
       setIsLive(false);
       setIsConnecting(false);
     };
 
     ws.onclose = () => {
-      console.log("📦 WebSocket blocks: Connection closed");
+      logger.websocket("blocks: Connection closed");
       setIsLive(false);
       setIsConnecting(false);
     };
 
     return () => {
-      console.log("📦 WebSocket blocks: Cleaning up connection");
+      logger.websocket("blocks: Cleaning up connection");
       if (ws.readyState === WebSocket.OPEN) {
         ws.close();
       }

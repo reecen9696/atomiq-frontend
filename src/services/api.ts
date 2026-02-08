@@ -2,6 +2,7 @@ import { config } from "@/config";
 import type { Winner, StatCard, ApiResponse, PaginatedResponse } from "@/types";
 import type { Block } from "@/mocks/blocks";
 import { ErrorFactory, AppError, retryWithBackoff } from "@/lib/error-handling";
+import { logger } from "@/lib/logger";
 import {
   formatSOLWithSymbol,
   formatNumber,
@@ -159,7 +160,7 @@ export const api = {
       );
 
       // Log raw games response for debugging
-      console.log("🎰 Raw games response:", gamesResponse.games.slice(0, 5));
+      logger.debug("🎰 Raw games response", { sampleSize: gamesResponse.games.slice(0, 5).length });
 
       // Transform games to winners format, filtering only wins
       const winners = gamesResponse.games
