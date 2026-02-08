@@ -5,6 +5,7 @@ import { GamesCarousel } from "@/components/home/games-carousel";
 import { BetsTable } from "@/components/ui/bets-table";
 import { TabSelector, type TabItem } from "@/components/ui/tab-selector";
 import { CoinflipGame } from "@/components/games/coinflip-game";
+import Dice from "@/components/games/dice/Dice";
 import { mockGames } from "@/mocks";
 import { latestBetsData } from "@/mocks/bets";
 import Image from "next/image";
@@ -30,11 +31,13 @@ export default function CasinoGamePage() {
           {/* Game Container */}
           <div
             className="w-full bg-black/30 rounded-t-md"
-            style={{ height: "628px" }}
+            style={{ height: "650px" }}
           >
             {/* Render actual game based on gamename */}
             {gamename === "coinflip" ? (
               <CoinflipGame />
+            ) : gamename === "dice" ? (
+              <Dice />
             ) : (
               /* Placeholder for other games */
               <div className="flex items-center justify-center h-full">

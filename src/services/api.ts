@@ -152,18 +152,49 @@ export const api = {
         { retries: 2 },
       );
 
+      // Log raw games response for debugging
+      console.log("🎰 Raw games response:", gamesResponse.games.slice(0, 5));
+      
       // Transform games to winners format, filtering only wins
       const winners = gamesResponse.games
         .filter((game: any) => game.outcome === "win")
         .slice(0, limit) // Take only the requested limit after filtering
-        .map((game: any) => ({
-          id: game.game_id || game.tx_id.toString(),
-          gameName:
-            game.game_type === "coinflip" ? "Coin Flip" : game.game_type,
-          gameImage: "/games/coinflip.png", // Coinflip game image
-          amount: `${((game.payout || 0) / 1_000_000_000).toFixed(4)} SOL`, // Convert from lamports to SOL
-          timestamp: new Date(game.timestamp).toISOString(),
-        }));
+        .map((game: any) => {
+          // Map game types to proper display names
+          let gameName = game.game_type;
+          let gameImage = "/games/coinflip.png";
+          
+          switch (game.game_type?.toLowerCase()) {
+            case "coinflip":
+              gameName = "Coin Flip";
+              gameImage = "/games/coinflip.png";
+              break;
+            case "dice":
+              gameName = "Dice";
+              gameImage = "/games/dice.png";
+              break;
+            case "plinko":
+              gameName = "Plinko";
+              gameImage = "/games/plinko.png";
+              break;
+            case "slot":
+              gameName = "Slots";
+              gameImage = "/games/slot.png";
+              break;
+            default:
+              gameName = game.game_type || "Unknown";
+          }
+          
+          return {
+            id: game.game_id || game.tx_id.toString(),
+            gameName,
+            gameImage,
+            amount: `${((game.payout || 0) / 1_000_000_000).toFixed(4)} SOL`,
+            timestamp: new Date(game.timestamp).toISOString(),
+          };
+        });
+      
+      console.log("🎰 Transformed winners:", winners.slice(0, 3));
 
       return {
         data: winners,
