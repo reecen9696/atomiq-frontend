@@ -9,16 +9,18 @@ export interface GameCardProps {
   id: string;
   title: string;
   image: string;
+  slug?: string;
   className?: string;
 }
 
 export const GameCard = React.memo<GameCardProps>(
-  ({ id, title, image, className }) => {
+  ({ id, title, image, slug, className }) => {
     const router = useRouter();
 
     const handleClick = () => {
-      const gameName = title.toLowerCase().replace(/\s+/g, "-");
-      router.push(`/casino/${gameName}`);
+      // Use slug if provided, otherwise derive from title (backward compatible)
+      const gameRoute = slug || title.toLowerCase().replace(/\s+/g, "-");
+      router.push(`/casino/${gameRoute}`);
     };
     return (
       <div

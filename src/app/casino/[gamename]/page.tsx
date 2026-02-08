@@ -4,8 +4,9 @@ import { Container } from "@/components/layout/container";
 import { GamesCarousel } from "@/components/home/games-carousel";
 import { BetsTable } from "@/components/ui/bets-table";
 import { TabSelector, type TabItem } from "@/components/ui/tab-selector";
-import { CoinflipGame } from "@/components/games/coinflip-game";
-import Dice from "@/components/games/dice/Dice";
+import { GameLoader } from "@/components/games/game-loader";
+import { GameNotFound } from "@/components/games/game-not-found";
+import { getGameBySlug, getAvailableGames } from "@/config/games";
 import { mockGames } from "@/mocks";
 import { latestBetsData } from "@/mocks/bets";
 import { Footer } from "@/components/layout/footer";
@@ -17,6 +18,10 @@ export default function CasinoGamePage() {
   const [activeTab, setActiveTab] = useState("latest-bets");
   const params = useParams();
   const gamename = params.gamename as string;
+  
+  // Get game configuration from registry
+  const game = getGameBySlug(gamename);
+  const availableGames = getAvailableGames();
 
   const betsTabItems: TabItem[] = [
     { id: "latest-bets", label: "Latest Bets" },
@@ -24,6 +29,20 @@ export default function CasinoGamePage() {
     { id: "my-bets", label: "My Bets" },
     { id: "lucky-wins", label: "Lucky Wins" },
   ];
+
+  // If game doesn't exist or is disabled, show 404
+  if (!game || !game.enabled) {
+    return (
+      <>
+        <main className="flex min-h-screen w-full justify-center bg-casino-bg pt-12">
+          <Container>
+            <GameNotFound requestedGame={gamename} />
+          </Container>
+        </main>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
@@ -34,24 +53,7 @@ export default function CasinoGamePage() {
             className="w-full bg-black/30 rounded-t-md"
             style={{ height: "650px" }}
           >
-            {/* Render actual game based on gamename */}
-            {gamename === "coinflip" ? (
-              <CoinflipGame />
-            ) : gamename === "dice" ? (
-              <Dice />
-            ) : (
-              /* Placeholder for other games */
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <h2 className="text-white text-2xl font-medium mb-2">
-                    {gamename ? gamename.replace(/-/g, " ") : "Game"}
-                  </h2>
-                  <p className="text-white/60">
-                    Game interface will be implemented here
-                  </p>
-                </div>
-              </div>
-            )}
+            <GameLoader game={game} />
           </div>
           <div className="bg-[#131216] w-full h-18 mb-3 rounded-b-md flex items-center justify-center">
             <div className="opacity-5">

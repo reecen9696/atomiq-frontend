@@ -231,3 +231,6 @@ export const ANIMATION_DURATION = config.animation;
 
 export type Config = typeof config;
 export type Env = typeof env;
+
+// Re-export game configuration
+export * from "./games";
