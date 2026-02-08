@@ -30,15 +30,19 @@ export function useRecentWins(limit?: number) {
       }
 
       try {
+        console.log("🎰 Fetching recent wins from API...");
         const response = await api.winners.getRecent(actualLimit);
+        console.log("🎰 Recent wins response:", response.data);
         return response.data || []; // Ensure we never return undefined
       } catch (error) {
-        console.warn("Winners API failed, returning empty array:", error);
+        console.error("🎰 Winners API failed:", error);
         return []; // Return empty array instead of throwing to prevent undefined
       }
     },
-    staleTime: config.polling.intervals.winners,
+    staleTime: 0, // Always consider data stale to refetch
     refetchInterval: config.polling.intervals.winners,
+    refetchOnMount: true, // Always refetch on mount
+    refetchOnWindowFocus: true, // Refetch when window regains focus
     retry: (failureCount, error) => {
       // Don't retry on validation errors
       if (error instanceof Error && error.message.includes("validation")) {

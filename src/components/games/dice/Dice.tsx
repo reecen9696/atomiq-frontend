@@ -529,6 +529,29 @@ const Dice: React.FC = () => {
     ) {
       processedBetRef.current = betResponse.game_id;
 
+      // ✅ Update balance based on bet outcome
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) {
+        const won = betResponse.outcome === "win";
+        const payoutAmount = betResponse.payment?.payout_amount || 0;
+        const betAmountNum = betResponse.payment?.bet_amount || 0;
+        
+        // Get current balance directly from fresh store state
+        const currentVaultBalance = currentUser.vaultBalance || 0;
+        const vaultAddress = currentUser.vaultAddress || "";
+
+        if (won) {
+          // Win: add net profit (payout - original bet)
+          const netProfit = payoutAmount - betAmountNum;
+          const newBalance = currentVaultBalance + netProfit;
+          updateVaultInfo(vaultAddress, newBalance);
+        } else {
+          // Loss: subtract bet amount
+          const newBalance = currentVaultBalance - betAmountNum;
+          updateVaultInfo(vaultAddress, newBalance);
+        }
+      }
+
       const animContainer =
         document.getElementsByClassName("DiceAnimContainer")[0];
       if (settingData.animation && animContainer) {
@@ -572,7 +595,7 @@ const Dice: React.FC = () => {
         settingData.animation ? 300 : 0,
       );
     }
-  }, [betResponse, settingData.animation, playProfitSound, playLostSound]);
+  }, [betResponse, settingData.animation, playProfitSound, playLostSound, updateVaultInfo]);
 
   const handleChangeSlider = (event: Event, value: number | number[]) => {
     const numValue = Array.isArray(value) ? value[0] : value;
@@ -618,7 +641,7 @@ const Dice: React.FC = () => {
       return;
     }
 
-    if (!user?.vaultAddress) {
+    if (!authData.userData.vaultAddress) {
       console.log("❌ No vault address found");
       console.error("Vault address required for betting");
       return;
@@ -648,7 +671,7 @@ const Dice: React.FC = () => {
       const requestData = {
         player_id: authData.userData._id,
         player_address: publicKey?.toBase58(),
-        vault_address: user?.vaultAddress,
+        vault_address: authData.userData.vaultAddress,
         bet_amount: betAmount,
         target: targetValue,
         condition: isOver ? "over" : "under",

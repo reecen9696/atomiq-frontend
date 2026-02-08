@@ -2,13 +2,20 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import { SDKProvider } from "@/components/providers/sdk-provider";
 
-// Import WalletProvider dynamically with SSR disabled
+// Import both providers dynamically with SSR disabled to prevent hydration errors
+const SDKProvider = dynamic(
+  () =>
+    import("@/components/providers/sdk-provider").then(
+      (mod) => mod.SDKProvider,
+    ),
+  { ssr: false },
+);
+
 const WalletProvider = dynamic(
   () =>
     import("@/components/providers/wallet-provider").then(
@@ -51,16 +58,24 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }),
   );
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <SDKProvider>
-          <WalletProvider>
-            {children}
-            <ReactQueryDevtools initialIsOpen={false} />
-          </WalletProvider>
-        </SDKProvider>
+        {mounted ? (
+          <SDKProvider>
+            <WalletProvider>
+              {children}
+              <ReactQueryDevtools initialIsOpen={false} />
+            </WalletProvider>
+          </SDKProvider>
+        ) : null}
       </ThemeProvider>
     </QueryClientProvider>
   );
