@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { walletToast, toast } from "@/lib/toast";
 import { solanaService } from "@/services/solana";
 import { PublicKey } from "@solana/web3.js";
+import { logger } from "@/lib/logger";
 
 type ModalPage = "connect" | "smartVault" | "addFunds" | "createSession";
 
@@ -71,7 +72,7 @@ function WalletModalComponent() {
         setVaultAddress("");
       }
     } catch (error) {
-      console.error("Failed to refresh vault info:", error);
+      logger.error("Failed to refresh vault info", error);
     }
   }, [publicKey, updateVaultInfo]);
 
@@ -126,7 +127,7 @@ function WalletModalComponent() {
             setCurrentPage("smartVault");
           }
         } catch (error) {
-          console.error("Failed to check vault:", error);
+          logger.error("Failed to check vault", error);
           setCurrentPage("smartVault");
         }
       }, 100);
@@ -162,16 +163,16 @@ function WalletModalComponent() {
   if (!isWalletModalOpen) return null;
 
   const handleActivateVault = async () => {
-    console.log("🏦 handleActivateVault called");
+    logger.debug("🏦 handleActivateVault called");
     if (!publicKey || !sendTransaction) {
-      console.log("❌ Missing wallet connection or sendTransaction");
+      logger.debug("❌ Missing wallet connection or sendTransaction");
       return;
     }
 
     try {
       setConnecting(true);
       setErrorMsg("");
-      console.log("⏳ Creating vault on-chain...");
+      logger.transaction("vault-init", { status: "starting" });
 
       const { signature, vaultPda } = await solanaService.initializeUserVault({
         user: publicKey,
@@ -185,21 +186,20 @@ function WalletModalComponent() {
       setVaultCreated(true);
       await refreshVaultInfo(); // Refresh vault state to get latest info
 
-      console.log("✅ Vault created successfully!");
-      console.log("📍 Vault PDA:", vaultPda);
-      console.log("📝 Transaction signature:", signature);
-      console.log(
-        "🔍 View on explorer:",
-        solanaService.getExplorerUrl(signature),
-      );
+      logger.transaction("vault-init", { 
+        status: "success",
+        vaultPda, 
+        signature,
+        explorer: solanaService.getExplorerUrl(signature)
+      });
 
       toast.success("Vault created", "Your smart vault is ready to use");
 
       // Auto-advance to add funds
-      console.log("➡️ Auto-advancing to addFunds");
+      logger.debug("➡️ Auto-advancing to addFunds");
       setCurrentPage("addFunds");
     } catch (error) {
-      console.error("❌ Failed to create vault:", error);
+      logger.error("❌ Failed to create vault", error);
 
       // Check if vault was actually created despite the error (Solana deduplication handling)
       if (publicKey) {
@@ -209,7 +209,7 @@ function WalletModalComponent() {
           );
           const exists = await solanaService.getAccountExists(vaultPda);
           if (exists) {
-            console.log("🔄 Vault was actually created successfully!");
+            logger.debug("🔄 Vault was actually created successfully!");
             setVaultAddress(vaultPda);
             setVaultCreated(true);
             setErrorMsg("");
@@ -219,7 +219,7 @@ function WalletModalComponent() {
             return;
           }
         } catch (checkErr) {
-          console.error("Error checking vault existence:", checkErr);
+          logger.error("Error checking vault existence", checkErr);
         }
       }
 
@@ -229,18 +229,18 @@ function WalletModalComponent() {
       toast.error("Failed to create vault", msg);
     } finally {
       setConnecting(false);
-      console.log("🔚 handleActivateVault complete");
+      logger.debug("🔚 handleActivateVault complete");
     }
   };
 
   const handleAddFunds = async () => {
-    console.log("💰 handleAddFunds called with amount:", amount);
+    logger.debug("💰 handleAddFunds called", { amount });
     if (!publicKey || !sendTransaction) {
-      console.log("❌ Missing wallet connection");
+      logger.debug("❌ Missing wallet connection");
       return;
     }
     if (!amount || parseFloat(amount) <= 0) {
-      console.log("❌ Invalid amount");
+      logger.debug("❌ Invalid amount");
       toast.warning("Invalid amount", "Please enter a valid amount");
       return;
     }
@@ -248,7 +248,7 @@ function WalletModalComponent() {
     try {
       setConnecting(true);
       setErrorMsg("");
-      console.log("⏳ Depositing funds on-chain...");
+      logger.transaction("deposit", { status: "starting", amount });
 
       const deposit = Number(amount);
       if (!Number.isFinite(deposit) || deposit <= 0) {
@@ -269,22 +269,21 @@ function WalletModalComponent() {
       setFundsAdded(true);
       await refreshVaultInfo(); // Refresh vault state to get updated balance
 
-      console.log("✅ Funds deposited successfully!");
-      console.log("📍 Vault PDA:", vaultPda);
-      console.log("💰 Amount:", deposit, "SOL");
-      console.log("📝 Transaction signature:", signature);
-      console.log(
-        "🔍 View on explorer:",
-        solanaService.getExplorerUrl(signature),
-      );
+      logger.transaction("deposit", {
+        status: "success",
+        vaultPda,
+        amount: deposit,
+        signature,
+        explorer: solanaService.getExplorerUrl(signature)
+      });
 
       toast.success("Funds added", `Deposited ${amount} SOL to your vault`);
 
       // Auto-advance to session creation
-      console.log("➡️ Auto-advancing to createSession");
+      logger.debug("➡️ Auto-advancing to createSession");
       setCurrentPage("createSession");
     } catch (error) {
-      console.error("❌ Failed to deposit funds:", error);
+      logger.error("❌ Failed to deposit funds", error);
 
       // Check if deposit actually succeeded despite error (Solana deduplication handling)
       const errMsg = error instanceof Error ? error.message : String(error);
@@ -292,7 +291,7 @@ function WalletModalComponent() {
         errMsg.includes("already been processed") ||
         errMsg.includes("This transaction has already been processed")
       ) {
-        console.log("🔄 Checking if deposit actually succeeded...");
+        logger.debug("🔄 Checking if deposit actually succeeded...");
         try {
           // Just continue to session creation - deposit likely succeeded
           setFundsAdded(true);
@@ -302,7 +301,7 @@ function WalletModalComponent() {
           setCurrentPage("createSession");
           return;
         } catch (checkErr) {
-          console.error("Error checking deposit success:", checkErr);
+          logger.error("Error checking deposit success", checkErr);
         }
       }
 
@@ -312,21 +311,21 @@ function WalletModalComponent() {
       toast.error("Failed to add funds", msg);
     } finally {
       setConnecting(false);
-      console.log("🔚 handleAddFunds complete");
+      logger.debug("🔚 handleAddFunds complete");
     }
   };
 
   const handleCreateSession = async () => {
-    console.log("⏰ handleCreateSession called");
+    logger.debug("⏰ handleCreateSession called");
     if (!publicKey || !sendTransaction) {
-      console.log("❌ Missing wallet connection");
+      logger.debug("❌ Missing wallet connection");
       return;
     }
 
     try {
       setConnecting(true);
       setErrorMsg("");
-      console.log("⏳ Creating betting session allowance on-chain...");
+      logger.transaction("allowance-create", { status: "starting" });
 
       // Create an allowance for 5 SOL that expires in 10000 seconds (same as test-ui defaults)
       const allowanceAmount = BigInt(5 * 1_000_000_000); // 5 SOL in lamports
@@ -344,28 +343,27 @@ function WalletModalComponent() {
 
       setLastSignature(signature);
 
-      console.log("✅ Betting session created successfully!");
-      console.log("📍 Allowance PDA:", allowancePda);
-      console.log("💰 Amount:", Number(allowanceAmount) / 1e9, "SOL");
-      console.log("⏰ Duration:", Number(durationSeconds), "seconds");
-      console.log("📝 Transaction signature:", signature);
-      console.log(
-        "🔍 View on explorer:",
-        solanaService.getExplorerUrl(signature),
-      );
+      logger.transaction("allowance-create", {
+        status: "success",
+        allowancePda,
+        amount: Number(allowanceAmount) / 1e9,
+        duration: Number(durationSeconds),
+        signature,
+        explorer: solanaService.getExplorerUrl(signature)
+      });
 
       toast.success("Session created", "You can now place bets!");
 
       // Close modal and reset
-      console.log("🚪 Closing modal and resetting");
+      logger.debug("🚪 Closing modal and resetting");
       handleClose();
     } catch (error) {
-      console.error("❌ Failed to create session:", error);
+      logger.error("❌ Failed to create session", error);
 
       // Check if allowance was actually created despite error (Solana deduplication handling)
       const errMsg = error instanceof Error ? error.message : String(error);
       if (errMsg.toLowerCase().includes("already been processed")) {
-        console.log("🔄 Retrying with skipPreflight: true...");
+        logger.debug("🔄 Retrying with skipPreflight: true...");
         try {
           const { signature, allowancePda } =
             await solanaService.approveAllowanceSol({
@@ -381,13 +379,13 @@ function WalletModalComponent() {
               signTransaction: signTransaction ?? undefined,
               connection: solanaService.getConnection(),
             });
-          console.log("✅ Session created! Signature:", signature);
+          logger.transaction("allowance-create", { status: "retry-success", signature });
           setErrorMsg("");
           toast.success("Session created", "You can now place bets!");
           handleClose();
           return;
         } catch (retryErr) {
-          console.error("❌ Retry also failed:", retryErr);
+          logger.error("❌ Retry also failed", retryErr);
 
           // Check for specific rate limit errors like test-ui
           const retryErrMsg =
@@ -428,7 +426,7 @@ function WalletModalComponent() {
       toast.error("Failed to create session", msg);
     } finally {
       setConnecting(false);
-      console.log("🔚 handleCreateSession complete");
+      logger.debug("🔚 handleCreateSession complete");
     }
   };
 

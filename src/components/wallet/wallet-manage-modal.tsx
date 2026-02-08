@@ -8,6 +8,7 @@ import { useBalance } from "@/hooks/useBalance";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { solanaService } from "@/services/solana";
 import { toast } from "@/lib/toast";
+import { logger } from "@/lib/logger";
 
 interface WalletManageModalProps {
   isOpen: boolean;
@@ -66,7 +67,7 @@ export function WalletManageModal({ isOpen, onClose }: WalletManageModalProps) {
           connection: solanaService.getConnection(),
         });
 
-        console.log("✅ Deposit successful!", signature);
+        logger.transaction("deposit", { signature, amount: amountNum });
         toast.success(
           "Deposit successful",
           `Deposited ${amount} SOL to your vault`,
@@ -83,7 +84,7 @@ export function WalletManageModal({ isOpen, onClose }: WalletManageModalProps) {
           connection: solanaService.getConnection(),
         });
 
-        console.log("✅ Withdrawal successful!", signature);
+        logger.transaction("withdraw", { signature, amount: amountNum });
         toast.success(
           "Withdrawal successful",
           `Withdrew ${amount} SOL to your wallet`,
@@ -96,7 +97,7 @@ export function WalletManageModal({ isOpen, onClose }: WalletManageModalProps) {
       setAmount("");
       onClose();
     } catch (error) {
-      console.error(`❌ ${activeAction} failed:`, error);
+      logger.error(`❌ ${activeAction} failed`, error);
 
       const errorMsg = error instanceof Error ? error.message : String(error);
       if (
