@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { config } from "@/config";
+import { config, env } from "@/config";
 import { mockStatCards } from "@/mocks";
-import { env } from "@/config/env";
 
 /**
  * Hook for fetching current statistics via direct API call like test-ui

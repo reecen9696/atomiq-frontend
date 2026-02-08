@@ -6,7 +6,7 @@ import { createWebSocketManager } from "@/lib/sdk/websocket/manager";
 import type { BlockUpdateMessage } from "@/lib/sdk/websocket/manager";
 import type { Block } from "@/mocks/blocks";
 import { createAtomikConfig } from "@/lib/sdk";
-import { env } from "@/config/env";
+import { env } from "@/config";
 
 interface UseWebSocketBlocksState {
   blocks: Block[];

@@ -8,6 +8,7 @@ import { CoinflipGame } from "@/components/games/coinflip-game";
 import Dice from "@/components/games/dice/Dice";
 import { mockGames } from "@/mocks";
 import { latestBetsData } from "@/mocks/bets";
+import { Footer } from "@/components/layout/footer";
 import Image from "next/image";
 import { useState } from "react";
 import { useParams } from "next/navigation";
@@ -81,28 +82,7 @@ export default function CasinoGamePage() {
         </Container>
       </main>
 
-      {/* Footer */}
-      <footer className="w-full bg-[#131216] mt-26">
-        <div className="flex justify-between items-start  px-4 sm:px-6 lg:px-10 2xl:px-12 py-6 h-24">
-          <div className="flex gap-8 ">
-            <span className="text-[14px] font-bold text-white/40">
-              How It Works
-            </span>
-            <span className="text-[14px] font-bold text-white/40">FAQ</span>
-            <span className="text-[14px] font-bold text-white/40">Support</span>
-            <span className="text-[14px] font-bold text-white/40">X</span>
-          </div>
-          <div className="opacity-5">
-            <Image
-              src="/brand/logo.svg"
-              alt="Atomik"
-              width={50}
-              height={15}
-              style={{ width: "auto", height: "auto" }}
-            />
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </>
   );
 }

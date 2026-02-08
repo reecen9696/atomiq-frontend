@@ -10,6 +10,7 @@ import { TabSelector, type TabItem } from "@/components/ui/tab-selector";
 import { mockGames } from "@/mocks";
 import { latestBetsData } from "@/mocks/bets";
 import { colors } from "@/design-system/tokens";
+import { Footer } from "@/components/layout/footer";
 import Image from "next/image";
 import { useState } from "react";
 
@@ -64,28 +65,7 @@ export default function HomePage() {
         </Container>
       </main>
 
-      {/* Footer */}
-      <footer className="w-full bg-[#131216] mt-26">
-        <div className="flex justify-between items-start  px-4 sm:px-6 lg:px-10 2xl:px-12 py-6 h-24">
-          <div className="flex gap-8 ">
-            <span className="text-[14px] font-bold text-white/40">
-              How It Works
-            </span>
-            <span className="text-[14px] font-bold text-white/40">FAQ</span>
-            <span className="text-[14px] font-bold text-white/40">Support</span>
-            <span className="text-[14px] font-bold text-white/40">X</span>
-          </div>
-          <div className="opacity-20">
-            <Image
-              src="/brand/logo.svg"
-              alt="Atomik"
-              width={70}
-              height={20}
-              style={{ width: "auto", height: "auto" }}
-            />
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </>
   );
 }

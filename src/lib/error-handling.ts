@@ -3,7 +3,7 @@
  * Comprehensive error management for the application
  */
 
-import { env } from "@/config/env";
+import { env } from "@/config";
 
 // Error types
 export enum ErrorCode {

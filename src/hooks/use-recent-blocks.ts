@@ -1,10 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/services/api";
-import { config } from "@/config";
+import { config, env } from "@/config";
 import { handleQueryError } from "@/lib/error-handling";
 import { mockBlocks } from "@/mocks";
-import { env } from "@/config/env";
 
 /**
  * Hook for fetching recent blockchain blocks with direct WebSocket updates
