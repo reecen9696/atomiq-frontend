@@ -18,8 +18,9 @@ export interface CoinflipRequest {
   choice: "heads" | "tails";
   token: Token;
   bet_amount: number;
-  wallet_signature?: string | null;
-  allowance_pda?: string | null;
+  allowance_nonce: number; // Required from PlaySession for PDA derivation
+  wallet_signature?: string; // Optional - not used (Solana program validates via PDA)
+  timestamp?: number; // Optional timestamp
 }
 
 export type CoinflipResult =

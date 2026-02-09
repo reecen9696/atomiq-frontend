@@ -15,7 +15,8 @@ import { useBetTrackingStore } from "@/stores/bet-tracking-store";
 import { useSettlementErrors } from "@/hooks/useSettlementErrors";
 
 export function CoinflipGame() {
-  const { publicKey } = useWallet();
+  const wallet = useWallet();
+  const { publicKey } = wallet;
   const { isConnected, openWalletModal, user, updateVaultInfo } =
     useAuthStore();
   const bettingService = useAtomikBetting();
@@ -166,16 +167,26 @@ export function CoinflipGame() {
     const toastId = bettingToast.placingBet(selectedSide, amount);
 
     try {
-      // Get cached allowancePda from localStorage
-      const cachedSession = allowance?.getCachedPlaySession?.();
-      const allowancePda = cachedSession?.allowancePda;
+      // Phase 4.2: Get current play session for nonce
+      const playSession = allowance.getCachedPlaySession();
+      if (!playSession) {
+        // Check if session exists but expired
+        const cachedData = localStorage.getItem(
+          `atomik:playSession:${publicKey?.toBase58()}`,
+        );
+        if (cachedData) {
+          throw new Error(
+            "⏰ Your play session has expired! Please click the timer button to extend your session.",
+          );
+        } else {
+          throw new Error(
+            "❌ No active play session found. Please approve an allowance first.",
+          );
+        }
+      }
 
-      const result = await placeCoinflipBet(
-        selectedSide,
-        amount,
-        user?.vaultAddress,
-        allowancePda,
-      );
+      // Place bet with nonce only - no wallet signature needed
+      const result = await placeCoinflipBet(selectedSide, amount, playSession);
 
       // Update with transaction ID if available
       if (result?.game_id) {

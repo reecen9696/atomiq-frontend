@@ -7,6 +7,7 @@ import type {
   Settlement,
   RecentGame,
 } from "../index";
+import type { PlaySessionData } from "./useAllowance";
 
 export interface UseBettingState {
   // Current game state
@@ -42,8 +43,7 @@ export interface UseBettingActions {
   placeCoinflipBet: (
     choice: "heads" | "tails",
     amount: number,
-    vaultPda?: string,
-    allowancePda?: string,
+    playSession: PlaySessionData,
   ) => Promise<CoinflipResult | null>;
 
   // Game result operations
@@ -153,11 +153,10 @@ export function useBetting(
     async (
       choice: "heads" | "tails",
       amount: number,
-      vaultPda?: string,
-      allowancePda?: string,
+      playSession: PlaySessionData,
     ): Promise<CoinflipResult | null> => {
       if (!userPublicKey) {
-        setState((prev) => ({ ...prev, error: "No user connected" }));
+        setState((prev) => ({ ...prev, error: "Wallet not connected" }));
         return null;
       }
 
@@ -178,12 +177,12 @@ export function useBetting(
       }));
 
       try {
+        // Place bet with nonce from PlaySession - no signature needed
         const result = await bettingService.placeCoinflipBet({
-          userPublicKey,
           choice,
           amount,
-          vaultPda,
-          allowancePda,
+          playSession,
+          userPublicKey,
         });
 
         setState((prev) => ({

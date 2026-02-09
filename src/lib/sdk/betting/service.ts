@@ -11,11 +11,10 @@ import { logger } from "@/lib/logger";
 export interface BettingOperations {
   // Betting operations
   placeCoinflipBet(params: {
-    userPublicKey: string;
     choice: "heads" | "tails";
     amount: number;
-    vaultPda?: string;
-    allowancePda?: string;
+    playSession: { nonce: number; allowancePda: string };
+    userPublicKey: string;
   }): Promise<CoinflipResult>;
 
   // Game result checking
@@ -50,24 +49,23 @@ export class AtomikBettingService implements BettingOperations {
 
   /**
    * Place a coinflip bet
+   * Uses allowance nonce from PlaySession for authorization
    */
   async placeCoinflipBet(params: {
-    userPublicKey: string;
     choice: "heads" | "tails";
     amount: number;
-    vaultPda?: string;
-    allowancePda?: string;
+    playSession: { nonce: number; allowancePda: string };
+    userPublicKey: string;
   }) {
-    const { userPublicKey, choice, amount, allowancePda } = params;
+    const { choice, amount, playSession, userPublicKey } = params;
 
-    // NOTE: Removed slow allowance lookup that was causing 3-5 second delay
-    // The allowancePda should be passed from the calling code (wallet modal state)
-    // Backend will validate the allowance and return appropriate error if invalid
-    if (!allowancePda) {
-      logger.warn("No allowancePda provided - bet may fail if allowance is required");
-    }
+    logger.info("Placing coinflip bet", {
+      player: userPublicKey.substring(0, 8),
+      nonce: playSession.nonce,
+      amount,
+    });
 
-    // Make API call to place bet using test-ui format with allowance PDA
+    // Make API call with nonce only - signature verification happens on Solana
     const response = await this.apiClient.playCoinflip({
       player_id: userPublicKey,
       choice,
@@ -76,13 +74,17 @@ export class AtomikBettingService implements BettingOperations {
         mint_address: null,
       },
       bet_amount: amount,
-      wallet_signature: null,
-      allowance_pda: allowancePda,
+      allowance_nonce: playSession.nonce,
     });
 
     if (!response.success || !response.data) {
       throw new Error(response.error || "Failed to place coinflip bet");
     }
+
+    logger.info("Bet placed successfully", {
+      gameId: response.data.game_id,
+      status: response.data.status,
+    });
 
     return response.data;
   }

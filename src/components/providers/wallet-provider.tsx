@@ -41,18 +41,19 @@ export function WalletProvider({ children }: WalletProviderProps) {
   }, [network]);
 
   // Initialize wallet adapters once and keep stable reference
-  const wallets = useMemo(
+  const wallets = useMemo<Adapter[]>(
     () => [
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter({ network }),
       new TorusWalletAdapter(),
     ],
-    [network],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
-  
+
   // Filter wallets on the client side only, after mount
   const [mounted, setMounted] = useState(false);
-  
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -60,9 +61,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
   return (
     <ConnectionProvider endpoint={endpoint}>
       <SolanaWalletProvider wallets={mounted ? wallets : []} autoConnect={true}>
-        <WalletModalProvider>
-          {children}
-        </WalletModalProvider>
+        <WalletModalProvider>{children}</WalletModalProvider>
       </SolanaWalletProvider>
     </ConnectionProvider>
   );

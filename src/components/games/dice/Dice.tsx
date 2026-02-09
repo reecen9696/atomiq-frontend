@@ -10,6 +10,8 @@ import axios from "axios";
 import { Theme } from "@mui/material/styles";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
+import { useAtomikAllowance } from "@/components/providers/sdk-provider";
+import { useAllowanceForCasino } from "@/lib/sdk/hooks";
 
 import DiceL from "./utils/DiceL";
 import DiceR from "./utils/DiceR";
@@ -439,9 +441,17 @@ const mockSettingData = {
 
 const Dice: React.FC = () => {
   const classes = useStyles();
-  const { publicKey } = useWallet();
+  const wallet = useWallet();
+  const { publicKey, signMessage } = wallet;
   const { isConnected, openWalletModal, user, updateVaultInfo } =
     useAuthStore();
+
+  // Phase 4.2: Initialize allowance service for wallet signatures
+  const allowanceService = useAtomikAllowance();
+  const allowance = useAllowanceForCasino(
+    publicKey?.toBase58() ?? null,
+    allowanceService,
+  );
 
   // Replace mock data with actual wallet/auth data
   const authData = {
@@ -535,7 +545,7 @@ const Dice: React.FC = () => {
         const won = betResponse.outcome === "win";
         const payoutAmount = betResponse.payment?.payout_amount || 0;
         const betAmountNum = betResponse.payment?.bet_amount || 0;
-        
+
         // Get current balance directly from fresh store state
         const currentVaultBalance = currentUser.vaultBalance || 0;
         const vaultAddress = currentUser.vaultAddress || "";
@@ -553,12 +563,12 @@ const Dice: React.FC = () => {
       }
 
       const animContainer =
-        document.getElementsByClassName("DiceAnimContainer")[0] as HTMLElement;
+        document.getElementsByClassName("DiceAnimContainer")[0];
       if (settingData.animation && animContainer) {
         // Remove any existing animation class first
         animContainer.classList.remove("DiceAnimate");
         // Force a reflow to ensure the class removal takes effect
-        void animContainer.offsetHeight;
+        (animContainer as HTMLElement).offsetHeight;
         // Add the animation class
         animContainer.classList.add("DiceAnimate");
       }
@@ -595,7 +605,13 @@ const Dice: React.FC = () => {
         settingData.animation ? 300 : 0,
       );
     }
-  }, [betResponse, settingData.animation, playProfitSound, playLostSound, updateVaultInfo]);
+  }, [
+    betResponse,
+    settingData.animation,
+    playProfitSound,
+    playLostSound,
+    updateVaultInfo,
+  ]);
 
   const handleChangeSlider = (event: Event, value: number | number[]) => {
     const numValue = Array.isArray(value) ? value[0] : value;
@@ -641,9 +657,17 @@ const Dice: React.FC = () => {
       return;
     }
 
+    // Phase 4.2: Check wallet supports message signing
+    if (!signMessage) {
+      console.error("Wallet does not support message signing");
+      return;
+    }
+
     if (!authData.userData.vaultAddress) {
       console.log("❌ No vault address found");
-      console.error("Vault address required for betting");
+      console.error(
+        "Vault not found. Please create a vault first or try refreshing the page.",
+      );
       return;
     }
 
@@ -668,6 +692,25 @@ const Dice: React.FC = () => {
     processedBetRef.current = null;
 
     try {
+      // Phase 4.2: Get current play session for nonce
+      const playSession = allowance.getCachedPlaySession();
+      if (!playSession) {
+        // Check if session exists but expired
+        const cachedData = localStorage.getItem(
+          `atomik:playSession:${publicKey?.toBase58()}`,
+        );
+        if (cachedData) {
+          alert(
+            "⏰ Your play session has expired!\n\nPlease click the timer button in the top-right corner to extend your session.",
+          );
+        } else {
+          alert(
+            "❌ No active play session found.\n\nPlease approve an allowance first by clicking the wallet icon.",
+          );
+        }
+        return;
+      }
+
       const requestData = {
         player_id: authData.userData._id,
         player_address: publicKey?.toBase58(),
@@ -678,6 +721,7 @@ const Dice: React.FC = () => {
         token: {
           symbol: "SOL",
         },
+        allowance_nonce: playSession.nonce,
       };
 
       const apiUrl = `${Config.Root.blockchainApiUrl}/api/dice/play`;

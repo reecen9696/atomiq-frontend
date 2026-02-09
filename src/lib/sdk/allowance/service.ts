@@ -62,6 +62,7 @@ export interface AllowanceOperations {
   }): Promise<{
     signature: string;
     allowancePda: string;
+    usedNonce: number;
   }>;
 
   revokeAllowance(params: {
@@ -77,12 +78,14 @@ export interface AllowanceOperations {
     userPublicKey: string;
     spender: string;
     additionalDuration: number;
+    amount?: number; // Optional amount to fund the new allowance
     sendTransaction: SendTransactionFn;
     signTransaction: SignTransactionFn;
     connection?: Connection;
   }): Promise<{
     signature: string;
     allowancePda: string;
+    usedNonce: number;
   }>;
 }
 
@@ -208,6 +211,7 @@ export class AtomikAllowanceService implements AllowanceOperations {
   }): Promise<{
     signature: string;
     allowancePda: string;
+    usedNonce: number;
   }> {
     const { userPublicKey, amount, duration = 10000 } = params;
     const userPubkey = new PublicKey(userPublicKey);
@@ -249,7 +253,9 @@ export class AtomikAllowanceService implements AllowanceOperations {
       });
 
       if (!allowanceInfo.exists) {
-        logger.warn("⚠️ WARNING: Allowance transaction confirmed but account not found on-chain!");
+        logger.warn(
+          "⚠️ WARNING: Allowance transaction confirmed but account not found on-chain!",
+        );
       }
     } catch (error) {
       logger.error("❌ Failed to verify allowance on-chain", error);
@@ -258,6 +264,7 @@ export class AtomikAllowanceService implements AllowanceOperations {
     return {
       signature: result.signature,
       allowancePda: result.allowancePda,
+      usedNonce: Number(result.usedNonce),
     };
   }
 
@@ -282,18 +289,21 @@ export class AtomikAllowanceService implements AllowanceOperations {
     userPublicKey: string;
     spender: string;
     additionalDuration: number;
+    amount?: number; // Optional amount to fund the new allowance
     sendTransaction: SendTransactionFn;
     signTransaction: SignTransactionFn;
     connection?: Connection;
   }): Promise<{
     signature: string;
     allowancePda: string;
+    usedNonce: number;
   }> {
     // For now, create a new allowance with extended duration
     // This is the same as approveAllowance with the additional duration
     const {
       userPublicKey,
       additionalDuration,
+      amount = 100, // Default 100 SOL allowance (configurable)
       sendTransaction,
       signTransaction,
     } = params;
@@ -301,7 +311,7 @@ export class AtomikAllowanceService implements AllowanceOperations {
     return await this.approveAllowance({
       userPublicKey,
       spender: params.spender,
-      amount: 5, // Default 5 SOL allowance
+      amount,
       duration: additionalDuration,
       sendTransaction,
       signTransaction,
