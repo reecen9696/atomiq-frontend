@@ -8,3 +8,10 @@ dist
 .env.development.local
 .env.test.local
 .env.production.local
+
+# testing
+coverage/
+.vitest/
+playwright-report/
+test-results/
+*.playwright-report/
