@@ -9,7 +9,11 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires these
+      // NOTE: Next.js requires 'unsafe-eval' for HMR and 'unsafe-inline' for its runtime scripts.
+      // In production builds with static generation, these could potentially be removed, but
+      // for now they are necessary for the development workflow and client-side React hydration.
+      // Consider using nonces or hashes in future iterations for stricter CSP.
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
       "font-src 'self' fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",

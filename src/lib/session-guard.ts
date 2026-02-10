@@ -6,6 +6,7 @@
 export interface SessionGuardConfig {
   timeoutMs: number; // Auto-disconnect after this many ms of inactivity
   warningMs: number; // Show warning this many ms before timeout
+  activityThrottleMs: number; // Throttle activity resets to this interval
 }
 
 export class SessionGuard {
@@ -18,10 +19,11 @@ export class SessionGuard {
   private onTimeoutCallback: (() => void) | null = null;
   private onWarningCallback: (() => void) | null = null;
 
-  // Configuration (30 min default timeout, 25 min warning)
+  // Configuration (30 min default timeout, 25 min warning, 1s throttle)
   private config: SessionGuardConfig = {
     timeoutMs: 30 * 60 * 1000, // 30 minutes
     warningMs: 25 * 60 * 1000, // 25 minutes
+    activityThrottleMs: 1000, // 1 second
   };
 
   constructor(config?: Partial<SessionGuardConfig>) {
@@ -141,9 +143,9 @@ export class SessionGuard {
    * Handle user activity
    */
   private handleActivity = (): void => {
-    // Throttle activity resets (max once per second)
+    // Throttle activity resets (max once per config interval)
     const now = Date.now();
-    if (now - this.lastActivityTime < 1000) {
+    if (now - this.lastActivityTime < this.config.activityThrottleMs) {
       return;
     }
 

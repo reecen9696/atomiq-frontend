@@ -16,7 +16,8 @@ import { useSettlementErrors } from "@/hooks/useSettlementErrors";
 import { 
   validateBetAmount, 
   validateCoinflipChoice, 
-  generateBetId 
+  generateBetId,
+  formatRateLimitMessage
 } from "@/lib/bet-validation";
 import { getRateLimiter } from "@/lib/rate-limiter";
 import { getTransactionGuard } from "@/lib/transaction-guard";
@@ -159,10 +160,9 @@ export function CoinflipGame() {
     const gameType = 'coinflip';
     const rateLimitCheck = rateLimiter.canPlaceBet(gameType);
     if (!rateLimitCheck.allowed) {
-      const retrySeconds = Math.ceil((rateLimitCheck.retryAfterMs || 0) / 1000);
       toast.warning(
         "Please slow down", 
-        `You can place another bet in ${retrySeconds} second${retrySeconds !== 1 ? 's' : ''}`
+        formatRateLimitMessage(rateLimitCheck.retryAfterMs || 0)
       );
       return;
     }

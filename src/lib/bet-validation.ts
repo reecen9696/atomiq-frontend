@@ -137,8 +137,20 @@ export function sanitizeNumericInput(input: string): number {
  * UUID v4 + timestamp for uniqueness and replay protection
  */
 export function generateBetId(): string {
-  // Generate UUID v4 manually (crypto.randomUUID not available in all environments)
   const timestamp = Date.now();
+  
+  // Use crypto.getRandomValues for cryptographically secure random numbers
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const buffer = new Uint8Array(16);
+    crypto.getRandomValues(buffer);
+    const randomPart = Array.from(buffer)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    return `${timestamp}-${randomPart}`;
+  }
+  
+  // Fallback for environments without crypto API (should not happen in modern browsers)
+  console.warn('crypto.getRandomValues not available, using less secure random');
   const randomPart = Array.from({ length: 16 }, () =>
     Math.floor(Math.random() * 256)
       .toString(16)
@@ -188,8 +200,12 @@ export function validateDiceTarget(
 }
 
 /**
- * Validate coinflip choice
+ * Format rate limit error message
  */
+export function formatRateLimitMessage(retryAfterMs: number): string {
+  const retrySeconds = Math.ceil(retryAfterMs / 1000);
+  return `You can place another bet in ${retrySeconds} second${retrySeconds !== 1 ? 's' : ''}`;
+}
 export function validateCoinflipChoice(
   choice: string | null
 ): ValidationResult {

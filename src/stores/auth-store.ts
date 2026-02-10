@@ -113,11 +113,12 @@ export const useAuthStore = create<AuthState>()(
           sessionGuard.resetActivity();
         }
         
+        // Revert means adding back the amount that was deducted
         set((state) => ({
           user: state.user
             ? {
                 ...state.user,
-                vaultBalance: Math.max(0, (state.user.vaultBalance || 0) - amount),
+                vaultBalance: Math.max(0, (state.user.vaultBalance || 0) + amount),
               }
             : null,
         }));

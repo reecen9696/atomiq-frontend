@@ -12,6 +12,7 @@ import { COMMUNITY_GAME_SECURITY } from '@/config/community-security';
 import { VerificationBadge } from './verification-badge';
 import { validateBetAmount } from '@/lib/bet-validation';
 import { toast } from '@/lib/toast';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface SandboxedGameRunnerProps {
   game: CommunityGameConfig;
@@ -22,6 +23,7 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isKilled, setIsKilled] = useState(false);
+  const { user } = useAuthStore();
 
   useEffect(() => {
     // Setup postMessage communication
@@ -73,8 +75,11 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
     };
 
     // Determine target origin based on bundle URL
+    // NOTE: For blob URLs, we must use '*' as postMessage doesn't support blob: origins.
+    // Security is maintained through origin validation on the receive side (see handleMessage).
+    // This is a platform limitation, not a security flaw - blob URLs don't have conventional origins.
     const targetOrigin = game.bundleUrl.startsWith('blob:') 
-      ? '*' // For blob URLs, we have to use '*' but origin was validated on receive
+      ? '*'
       : new URL(game.bundleUrl).origin;
 
     iframeRef.current?.contentWindow?.postMessage(
@@ -88,7 +93,7 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
     const betAmount = Number(payload.amount || 0);
     const minBet = 0.01; // Platform minimum
     const maxBet = 10; // Platform maximum
-    const balance = 1000; // TODO: Get actual balance from auth store
+    const balance = user?.vaultBalance || 0;
     
     const validation = validateBetAmount(betAmount, minBet, maxBet, balance);
     if (!validation.isValid) {
