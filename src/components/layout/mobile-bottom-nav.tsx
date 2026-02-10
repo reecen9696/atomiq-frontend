@@ -7,9 +7,9 @@ import { cn } from "@/lib/cn";
 const ITEMS = [
   { key: "home", label: "Home", href: "/" },
   { key: "casino", label: "Casino", href: "/casino" },
+  { key: "community", label: "Community", href: "/community" },
   { key: "chat", label: "Chat", href: "#" },
   { key: "rewards", label: "Rewards", href: "#" },
-  { key: "vrf", label: "VRF", href: "#" },
 ] as const;
 
 export function MobileBottomNav() {
