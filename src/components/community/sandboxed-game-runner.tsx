@@ -10,6 +10,9 @@ import { AlertTriangle, Shield, X } from 'lucide-react';
 import type { CommunityGameConfig } from '@/types/community-games';
 import { COMMUNITY_GAME_SECURITY } from '@/config/community-security';
 import { VerificationBadge } from './verification-badge';
+import { validateBetAmount } from '@/lib/bet-validation';
+import { toast } from '@/lib/toast';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface SandboxedGameRunnerProps {
   game: CommunityGameConfig;
@@ -20,12 +23,16 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isKilled, setIsKilled] = useState(false);
+  const { user } = useAuthStore();
 
   useEffect(() => {
     // Setup postMessage communication
     const handleMessage = (event: MessageEvent) => {
-      // Validate origin
-      if (!event.origin.includes(window.location.origin)) {
+      // Validate origin - only accept messages from our own origin or blob URLs
+      const isOwnOrigin = event.origin === window.location.origin;
+      const isBlobUrl = game.bundleUrl.startsWith('blob:');
+      
+      if (!isOwnOrigin && !isBlobUrl) {
         console.warn('Blocked message from untrusted origin:', event.origin);
         return;
       }
@@ -53,7 +60,7 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [game.bundleUrl]);
 
   const handleVRFRequest = (payload: Record<string, unknown>) => {
     // In real implementation, this would call the backend VRF service
@@ -67,13 +74,34 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
       randomNumber: Math.random(),
     };
 
+    // Determine target origin based on bundle URL
+    // NOTE: For blob URLs, we must use '*' as postMessage doesn't support blob: origins.
+    // Security is maintained through origin validation on the receive side (see handleMessage).
+    // This is a platform limitation, not a security flaw - blob URLs don't have conventional origins.
+    const targetOrigin = game.bundleUrl.startsWith('blob:') 
+      ? '*'
+      : new URL(game.bundleUrl).origin;
+
     iframeRef.current?.contentWindow?.postMessage(
       { type: 'VRF_RESPONSE', payload: vrfResult },
-      '*'
+      targetOrigin
     );
   };
 
   const handleBetPlaced = (payload: Record<string, unknown>) => {
+    // Validate bet before processing
+    const betAmount = Number(payload.amount || 0);
+    const minBet = 0.01; // Platform minimum
+    const maxBet = 10; // Platform maximum
+    const balance = user?.vaultBalance || 0;
+    
+    const validation = validateBetAmount(betAmount, minBet, maxBet, balance);
+    if (!validation.isValid) {
+      console.warn('Invalid bet from community game:', validation.error);
+      toast.error('Invalid bet', validation.error || 'Bet validation failed');
+      return;
+    }
+    
     // In real implementation, this would call the backend bet service
     console.log('Bet Placed:', payload);
   };

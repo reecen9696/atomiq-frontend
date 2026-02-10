@@ -13,6 +13,15 @@ import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { bettingToast, toast, walletToast } from "@/lib/toast";
 import { useBetTrackingStore } from "@/stores/bet-tracking-store";
 import { useSettlementErrors } from "@/hooks/useSettlementErrors";
+import { 
+  validateBetAmount, 
+  validateCoinflipChoice, 
+  generateBetId,
+  formatRateLimitMessage
+} from "@/lib/bet-validation";
+import { getRateLimiter } from "@/lib/rate-limiter";
+import { getTransactionGuard } from "@/lib/transaction-guard";
+import { sanitizeError } from "@/lib/error-handler";
 
 export function CoinflipGame() {
   const { publicKey } = useWallet();
@@ -129,41 +138,62 @@ export function CoinflipGame() {
       return;
     }
 
-    if (!selectedSide) {
-      toast.warning("Select heads or tails", "Choose a side to bet on");
+    // Validate choice
+    const choiceValidation = validateCoinflipChoice(selectedSide);
+    if (!choiceValidation.isValid) {
+      toast.warning("Invalid choice", choiceValidation.error || "Please select heads or tails");
       return;
     }
 
     const amount = parseFloat(betAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error("Invalid amount", "Please enter a valid bet amount");
+    
+    // Validate bet amount
+    const balance = user?.vaultBalance || 0;
+    const validation = validateBetAmount(amount, 0.01, 10, balance);
+    if (!validation.isValid) {
+      toast.error("Invalid bet", validation.error || "Please check your bet amount");
       return;
     }
 
-    if (amount < 0.01) {
-      toast.warning("Minimum bet", "Minimum bet is 0.01 SOL");
+    // Check rate limiting
+    const rateLimiter = getRateLimiter();
+    const gameType = 'coinflip';
+    const rateLimitCheck = rateLimiter.canPlaceBet(gameType);
+    if (!rateLimitCheck.allowed) {
+      toast.warning(
+        "Please slow down", 
+        formatRateLimitMessage(rateLimitCheck.retryAfterMs || 0)
+      );
       return;
     }
 
-    if (amount > 10) {
-      toast.warning("Maximum bet", "Maximum bet is 10 SOL");
+    // Generate unique bet ID
+    const betId = generateBetId();
+    
+    // Check transaction guard (prevent replays)
+    const txGuard = getTransactionGuard();
+    if (!txGuard.markPending(betId)) {
+      toast.error("Duplicate bet", "This bet is already being processed");
       return;
     }
 
-    // Create unique game ID
+    // Create game ID for tracking
     const gameId = `${Date.now()}-${selectedSide}-${amount}`;
 
     // Track the pending bet
     addPendingBet({
       gameId,
       amount,
-      choice: selectedSide,
+      choice: selectedSide!,
       timestamp: Date.now(),
       playerAddress: publicKey!.toBase58(),
     });
 
+    // Record rate limit
+    rateLimiter.recordBet(gameType);
+
     // Place bet
-    const toastId = bettingToast.placingBet(selectedSide, amount);
+    const toastId = bettingToast.placingBet(selectedSide!, amount);
 
     try {
       // Get cached allowancePda from localStorage
@@ -171,11 +201,14 @@ export function CoinflipGame() {
       const allowancePda = cachedSession?.allowancePda;
 
       const result = await placeCoinflipBet(
-        selectedSide,
+        selectedSide!,
         amount,
         user?.vaultAddress,
         allowancePda,
       );
+
+      // Mark transaction as completed
+      txGuard.markCompleted(betId);
 
       // Update with transaction ID if available
       if (result?.game_id) {
@@ -189,8 +222,16 @@ export function CoinflipGame() {
         }
       }
     } catch (error) {
+      // Mark transaction as failed
+      txGuard.markFailed(betId);
+      
       // Remove pending bet on error
       removePendingBet(gameId);
+      
+      // Sanitize and display error
+      const sanitized = sanitizeError(error);
+      toast.error("Bet failed", sanitized.message);
+      
       throw error;
     } finally {
       toast.dismiss(toastId);
