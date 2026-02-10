@@ -28,7 +28,6 @@ export default function CommunityStorePage() {
     searchGames,
     setSortBy,
     setFilterStatus,
-    setSearchQuery,
     nextPage,
     previousPage,
   } = useCommunityStore();

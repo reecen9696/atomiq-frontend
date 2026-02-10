@@ -38,13 +38,13 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
           console.log('Game SDK initialized');
           break;
         case 'VRF_REQUEST':
-          handleVRFRequest(payload);
+          handleVRFRequest(payload as Record<string, unknown>);
           break;
         case 'BET_PLACED':
-          handleBetPlaced(payload);
+          handleBetPlaced(payload as Record<string, unknown>);
           break;
         case 'BET_SETTLED':
-          handleBetSettled(payload);
+          handleBetSettled(payload as Record<string, unknown>);
           break;
         default:
           console.log('Unknown message type:', type);
@@ -55,7 +55,7 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  const handleVRFRequest = (payload: any) => {
+  const handleVRFRequest = (payload: Record<string, unknown>) => {
     // In real implementation, this would call the backend VRF service
     console.log('VRF Request:', payload);
     
@@ -63,7 +63,7 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
     const vrfResult = {
       output: '0x' + Math.random().toString(16).substr(2),
       proof: '0xproof...',
-      inputMessage: payload.betId,
+      inputMessage: String(payload.betId || ''),
       randomNumber: Math.random(),
     };
 
@@ -73,12 +73,12 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
     );
   };
 
-  const handleBetPlaced = (payload: any) => {
+  const handleBetPlaced = (payload: Record<string, unknown>) => {
     // In real implementation, this would call the backend bet service
     console.log('Bet Placed:', payload);
   };
 
-  const handleBetSettled = (payload: any) => {
+  const handleBetSettled = (payload: Record<string, unknown>) => {
     // In real implementation, this would call the backend settlement service
     console.log('Bet Settled:', payload);
   };

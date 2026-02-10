@@ -213,6 +213,14 @@ export function formatGameTitle(slug: string): string {
 }
 
 /**
+ * Get community games
+ * Returns games in the community category
+ */
+export function getCommunityGames(): GameConfig[] {
+  return getGamesByCategory("community");
+}
+
+/**
  * Game categories
  */
 export const GAME_CATEGORIES_LIST = [
@@ -221,4 +229,5 @@ export const GAME_CATEGORIES_LIST = [
   { id: "slots", label: "Slots" },
   { id: "table", label: "Table Games" },
   { id: "arcade", label: "Arcade" },
+  { id: "community", label: "Community" },
 ] as const;
