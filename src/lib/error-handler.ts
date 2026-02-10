@@ -185,13 +185,13 @@ function sanitizeBetValidationMessage(message: string): string {
 function isSafeMessage(message: string): boolean {
   // Patterns that indicate unsafe content
   const unsafePatterns = [
-    /[\/\\].*\.(ts|tsx|js|jsx)/i, // File paths
+    /[/\\].*\.(ts|tsx|js|jsx)/i, // File paths
     /at\s+\w+\s+\(/i, // Stack trace
     /[A-HJ-NP-Z1-9]{32,44}/, // Solana addresses
     /0x[0-9a-f]{40}/i, // Ethereum-style addresses
     /\w+Error:/i, // Error type names
     /node_modules/i,
-    /src[\/\\]/i,
+    /src[/\\]/i,
     /localhost:\d+/i,
     /127\.0\.0\.1/i,
   ];

@@ -460,6 +460,7 @@ const Dice: React.FC = () => {
       _id: publicKey?.toBase58() || "mock-user-id",
       currency: "SOL",
       vaultAddress: user?.vaultAddress,
+      vaultBalance: user?.vaultBalance || 0,
     },
   };
   const settingData = mockSettingData;
