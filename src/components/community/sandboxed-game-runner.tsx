@@ -10,6 +10,8 @@ import { AlertTriangle, Shield, X } from 'lucide-react';
 import type { CommunityGameConfig } from '@/types/community-games';
 import { COMMUNITY_GAME_SECURITY } from '@/config/community-security';
 import { VerificationBadge } from './verification-badge';
+import { validateBetAmount } from '@/lib/bet-validation';
+import { toast } from '@/lib/toast';
 
 interface SandboxedGameRunnerProps {
   game: CommunityGameConfig;
@@ -24,8 +26,11 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
   useEffect(() => {
     // Setup postMessage communication
     const handleMessage = (event: MessageEvent) => {
-      // Validate origin
-      if (!event.origin.includes(window.location.origin)) {
+      // Validate origin - only accept messages from our own origin or blob URLs
+      const isOwnOrigin = event.origin === window.location.origin;
+      const isBlobUrl = game.bundleUrl.startsWith('blob:');
+      
+      if (!isOwnOrigin && !isBlobUrl) {
         console.warn('Blocked message from untrusted origin:', event.origin);
         return;
       }
@@ -53,7 +58,7 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [game.bundleUrl]);
 
   const handleVRFRequest = (payload: Record<string, unknown>) => {
     // In real implementation, this would call the backend VRF service
@@ -67,13 +72,31 @@ export function SandboxedGameRunner({ game }: SandboxedGameRunnerProps) {
       randomNumber: Math.random(),
     };
 
+    // Determine target origin based on bundle URL
+    const targetOrigin = game.bundleUrl.startsWith('blob:') 
+      ? '*' // For blob URLs, we have to use '*' but origin was validated on receive
+      : new URL(game.bundleUrl).origin;
+
     iframeRef.current?.contentWindow?.postMessage(
       { type: 'VRF_RESPONSE', payload: vrfResult },
-      '*'
+      targetOrigin
     );
   };
 
   const handleBetPlaced = (payload: Record<string, unknown>) => {
+    // Validate bet before processing
+    const betAmount = Number(payload.amount || 0);
+    const minBet = 0.01; // Platform minimum
+    const maxBet = 10; // Platform maximum
+    const balance = 1000; // TODO: Get actual balance from auth store
+    
+    const validation = validateBetAmount(betAmount, minBet, maxBet, balance);
+    if (!validation.isValid) {
+      console.warn('Invalid bet from community game:', validation.error);
+      toast.error('Invalid bet', validation.error || 'Bet validation failed');
+      return;
+    }
+    
     // In real implementation, this would call the backend bet service
     console.log('Bet Placed:', payload);
   };

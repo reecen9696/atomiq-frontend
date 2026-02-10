@@ -10,6 +10,16 @@ import axios from "axios";
 import { Theme } from "@mui/material/styles";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
+import { 
+  validateBetAmount, 
+  validateDiceTarget,
+  generateBetId,
+  sanitizeNumericInput
+} from "@/lib/bet-validation";
+import { getRateLimiter } from "@/lib/rate-limiter";
+import { getTransactionGuard } from "@/lib/transaction-guard";
+import { sanitizeError } from "@/lib/error-handler";
+import { toast } from "@/lib/toast";
 
 import DiceL from "./utils/DiceL";
 import DiceR from "./utils/DiceR";
@@ -643,15 +653,50 @@ const Dice: React.FC = () => {
 
     if (!authData.userData.vaultAddress) {
       console.log("❌ No vault address found");
-      console.error("Vault address required for betting");
+      toast.error("Vault required", "Vault address required for betting");
       return;
     }
 
-    if (targetValue < 1 || targetValue > 99) {
-      console.log("❌ Invalid target:", targetValue);
-      console.error("Target must be between 1 and 99");
+    // Validate target value
+    const targetValidation = validateDiceTarget(targetValue, isOver);
+    if (!targetValidation.isValid) {
+      toast.error("Invalid target", targetValidation.error || "Invalid target value");
       return;
     }
+
+    // Validate bet amount
+    const balance = authData.userData.vaultBalance || 0;
+    const validation = validateBetAmount(betAmount, setting.min, setting.max, balance);
+    if (!validation.isValid) {
+      toast.error("Invalid bet", validation.error || "Please check your bet amount");
+      return;
+    }
+
+    // Check rate limiting
+    const rateLimiter = getRateLimiter();
+    const gameType = 'dice';
+    const rateLimitCheck = rateLimiter.canPlaceBet(gameType);
+    if (!rateLimitCheck.allowed) {
+      const retrySeconds = Math.ceil((rateLimitCheck.retryAfterMs || 0) / 1000);
+      toast.warning(
+        "Please slow down", 
+        `You can place another bet in ${retrySeconds} second${retrySeconds !== 1 ? 's' : ''}`
+      );
+      return;
+    }
+
+    // Generate unique bet ID
+    const betId = generateBetId();
+    
+    // Check transaction guard (prevent replays)
+    const txGuard = getTransactionGuard();
+    if (!txGuard.markPending(betId)) {
+      toast.error("Duplicate bet", "This bet is already being processed");
+      return;
+    }
+
+    // Record rate limit
+    rateLimiter.recordBet(gameType);
 
     playEffectSound(playClickSound);
     const animContainer =
@@ -698,12 +743,17 @@ const Dice: React.FC = () => {
       });
 
       if (response.data.status === "complete" && response.data.result) {
+        // Mark transaction as completed
+        txGuard.markCompleted(betId);
         setBetResponse(response.data.result);
       } else {
         console.error("❌ Invalid response format:", response.data);
         throw new Error("Invalid response from server");
       }
     } catch (error: any) {
+      // Mark transaction as failed
+      txGuard.markFailed(betId);
+      
       console.error("❌ Dice play error:", error);
       console.error("❌ Error details:", {
         message: error.message,
@@ -711,10 +761,11 @@ const Dice: React.FC = () => {
         status: error.response?.status,
         url: `${Config.Root.blockchainApiUrl}/api/dice/play`,
       });
-      console.error(
-        "Failed to play dice:",
-        error.response?.data || error.message,
-      );
+      
+      // Sanitize and display error
+      const sanitized = sanitizeError(error);
+      toast.error("Bet failed", sanitized.message);
+      
       setPlayLoading(false);
     }
   };
