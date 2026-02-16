@@ -113,13 +113,14 @@ function WalletModalComponent() {
           });
 
           if (vaultInfo.exists) {
-            // User already has vault - close modal
+            // User already has vault - go directly to session creation
             setVaultCreated(true);
             setVaultAddress(vaultInfo.address);
             const vaultBalance =
               Number(vaultInfo.state?.solBalanceLamports || 0n) / 1e9;
             updateVaultInfo(vaultInfo.address, vaultBalance);
-            handleClose();
+            // Allow user to create new session
+            setCurrentPage("createSession");
           } else {
             // Start onboarding flow
             setVaultCreated(false);
