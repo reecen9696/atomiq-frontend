@@ -106,12 +106,21 @@ export interface UseAllowanceActions {
     spender: string,
     amount: number,
     duration?: number,
-  ) => Promise<{ signature: string; allowancePda: string } | null>;
+  ) => Promise<{
+    signature: string;
+    allowancePda: string;
+    usedNonce: number;
+  } | null>;
   revoke: (allowancePda: string) => Promise<string | null>;
   extend: (
     spender: string,
     additionalDuration: number,
-  ) => Promise<{ signature: string; allowancePda: string } | null>;
+    amount?: number, // Optional amount to fund the new allowance
+  ) => Promise<{
+    signature: string;
+    allowancePda: string;
+    usedNonce: number;
+  } | null>;
 
   // Utility operations
   refreshAllowances: (spender: string) => Promise<void>;
@@ -286,7 +295,11 @@ export function useAllowance(
       spender: string,
       amount: number,
       duration = 10000,
-    ): Promise<{ signature: string; allowancePda: string } | null> => {
+    ): Promise<{
+      signature: string;
+      allowancePda: string;
+      usedNonce: number;
+    } | null> => {
       if (!userPublicKey || !sendTransaction || !signTransaction) {
         setState((prev) => ({
           ...prev,
@@ -326,15 +339,13 @@ export function useAllowance(
         try {
           const key = `atomik:lastAllowancePda:${userPublicKey}`;
           localStorage.setItem(key, result.allowancePda);
-          logger.debug(
-            "✅ Saved allowance PDA to localStorage:",
-            { allowancePda: result.allowancePda },
-          );
+          logger.debug("✅ Saved allowance PDA to localStorage:", {
+            allowancePda: result.allowancePda,
+          });
         } catch (storageError) {
-          logger.warn(
-            "Unable to save allowance PDA to localStorage:",
-            { error: storageError },
-          );
+          logger.warn("Unable to save allowance PDA to localStorage:", {
+            error: storageError,
+          });
         }
 
         // Get the allowance info and cache it for instant display
@@ -348,12 +359,18 @@ export function useAllowance(
             const playSessionData: PlaySessionData = {
               allowancePda: result.allowancePda,
               expiresAt: Number(allowanceInfo.allowanceData.expiresAt),
-              nonce: 0, // This will be updated when we have nonce info
+              nonce: result.usedNonce,
             };
             savePlaySessionData(playSessionData);
+            logger.info("✅ PlaySession cached", {
+              nonce: result.usedNonce,
+              pda: result.allowancePda,
+            });
           }
         } catch (cacheError) {
-          logger.warn("⚠️ Could not cache play session data:", { error: cacheError });
+          logger.warn("⚠️ Could not cache play session data:", {
+            error: cacheError,
+          });
         }
 
         // Refresh allowances after approval
@@ -383,7 +400,12 @@ export function useAllowance(
     async (
       spender: string,
       additionalDuration: number,
-    ): Promise<{ signature: string; allowancePda: string } | null> => {
+      amount?: number, // Optional amount to fund new allowance (default 100 SOL)
+    ): Promise<{
+      signature: string;
+      allowancePda: string;
+      usedNonce: number;
+    } | null> => {
       if (!userPublicKey || !sendTransaction || !signTransaction) {
         setState((prev) => ({
           ...prev,
@@ -407,6 +429,7 @@ export function useAllowance(
           userPublicKey,
           spender,
           additionalDuration,
+          amount, // Pass through the amount parameter
           sendTransaction,
           signTransaction,
         });
@@ -429,12 +452,18 @@ export function useAllowance(
             const playSessionData: PlaySessionData = {
               allowancePda: result.allowancePda,
               expiresAt: Number(allowanceInfo.allowanceData.expiresAt),
-              nonce: 0, // This will be updated when we have nonce info
+              nonce: result.usedNonce,
             };
             savePlaySessionData(playSessionData);
+            logger.info("✅ PlaySession extended and cached", {
+              nonce: result.usedNonce,
+              pda: result.allowancePda,
+            });
           }
         } catch (cacheError) {
-          logger.warn("⚠️ Could not cache play session data:", { error: cacheError });
+          logger.warn("⚠️ Could not cache play session data:", {
+            error: cacheError,
+          });
         }
 
         // Refresh allowances after extension
@@ -575,8 +604,8 @@ export function useAllowanceForCasino(
   );
 
   const extendForCasino = useCallback(
-    (additionalDuration: number) =>
-      allowanceHook.extend(spender, additionalDuration),
+    (additionalDuration: number, amount?: number) =>
+      allowanceHook.extend(spender, additionalDuration, amount),
     [allowanceHook.extend, spender],
   );
 

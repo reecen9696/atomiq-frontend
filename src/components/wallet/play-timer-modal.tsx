@@ -31,9 +31,11 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
   const [timeRemaining, setTimeRemaining] = useState<string>("--:--:--");
   const [expiresAt, setExpiresAt] = useState<bigint | null>(null);
   const [allowanceData, setAllowanceData] = useState<any>(null);
+  const [allowancePda, setAllowancePda] = useState<string | null>(null);
   const [progressPercentage, setProgressPercentage] = useState<number>(0);
   const [isLoadingAllowance, setIsLoadingAllowance] = useState(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   // Fetch the most recent active allowance when modal opens
   useEffect(() => {
@@ -60,6 +62,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
             const data = allowanceInfo.allowanceData;
             setExpiresAt(BigInt(data.expiresAt));
             setAllowanceData(data);
+            setAllowancePda(cachedSession.allowancePda);
 
             // Calculate progress percentage from on-chain data
             const totalAmount = Number(data.amountLamports);
@@ -74,13 +77,17 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         }
 
         // If no valid cache, check if user has any allowances at all
-        logger.debug("📊 No cached data found, checking if user has any allowances...");
+        logger.debug(
+          "📊 No cached data found, checking if user has any allowances...",
+        );
         try {
           const nextNonce = await allowanceHook.getNextNonce("casino");
           logger.debug("🔢 Next nonce would be", { nextNonce });
 
           if (nextNonce === 0) {
-            logger.debug("❌ No allowances found - user needs to create one first");
+            logger.debug(
+              "❌ No allowances found - user needs to create one first",
+            );
             setExpiresAt(null);
             setAllowanceData(null);
             setProgressPercentage(0);
@@ -92,7 +99,9 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         }
 
         // Fallback: Only use slow on-chain scanning as last resort
-        logger.warn("🐌 No cache available, falling back to slow on-chain scan");
+        logger.warn(
+          "🐌 No cache available, falling back to slow on-chain scan",
+        );
         logger.warn("⚠️ This is slow and should only happen once per user");
 
         // Add timeout to prevent hanging
@@ -108,7 +117,9 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
           ]);
         } catch (error) {
           if ((error as Error)?.message === "Timeout") {
-            logger.warn("⏰ On-chain scan timed out - this is expected with many allowances");
+            logger.warn(
+              "⏰ On-chain scan timed out - this is expected with many allowances",
+            );
             setLoadingTimedOut(true);
             setExpiresAt(null);
             setAllowanceData(null);
@@ -127,6 +138,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         ) {
           setExpiresAt((mostRecent.data as any).expiresAt);
           setAllowanceData(mostRecent.data as any);
+          setAllowancePda((mostRecent as any).allowancePda);
 
           // Calculate progress percentage
           const totalAmount = Number((mostRecent.data as any).amountLamports);
@@ -198,6 +210,16 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
     return () => clearInterval(interval);
   }, [expiresAt]);
 
+  // DISABLED: Revoke allowance not implemented in Solana program yet
+  // Creating new session without revoking would lose funds from old allowance
+  // Users should extend their existing session instead
+  const handleCreateNewSession = useCallback(async () => {
+    toast.error(
+      "Feature not available",
+      "Please use 'Extend Session' instead. Creating a new session would lose your existing allowance funds until the Solana program implements fund reclaiming.",
+    );
+  }, []);
+
   const handleExtendTimer = useCallback(async () => {
     if (!publicKey || !sendTransaction) {
       toast.error(
@@ -208,17 +230,17 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
     }
 
     try {
-      // Extend allowance for another 10000 seconds (same as initial duration)
-      const result = await allowanceHook.extend(10000);
+      // Extend allowance for another 10000 seconds with 100 SOL
+      const result = await allowanceHook.extend(10000, 100);
 
       if (result) {
         toast.success(
           "Session extended",
           "Your play session has been extended successfully",
         );
-        logger.transaction("allowance-extend", { 
+        logger.transaction("allowance-extend", {
           signature: result.signature,
-          allowancePda: result.allowancePda 
+          allowancePda: result.allowancePda,
         });
 
         // Get updated cached data (should be available immediately after extension)
@@ -234,6 +256,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
             const data = allowanceInfo.allowanceData;
             setExpiresAt(BigInt(data.expiresAt));
             setAllowanceData(data);
+            setAllowancePda(updatedCache.allowancePda);
 
             // Update progress percentage
             const totalAmount = Number(data.amountLamports);
@@ -289,7 +312,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-white text-xl font-medium">
-            Extend Play Session
+            Manage Play Session
           </h2>
           <button
             onClick={handleCloseClick}
@@ -325,11 +348,12 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         {/* Content */}
         <div className="text-center mb-8 flex-1">
           <h3 className="text-white text-lg font-medium mb-4">
-            Extend Your Play Session
+            {allowanceData ? "Manage Your Play Session" : "Create Play Session"}
           </h3>
           <p className="text-white/60 text-sm mb-6">
-            Your current play session is about to expire. Would you like to
-            extend it for another hour of gaming?
+            {allowanceData
+              ? "Extend your current session or create a new one to reclaim funds from the old allowance."
+              : "Create a new play session to start gaming with a 100 SOL allowance."}
           </p>
 
           {/* Timer Display */}
@@ -466,14 +490,34 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
           )}
         </div>
 
-        {/* Action Button */}
-        <div className="mt-auto flex-shrink-0">
+        {/* Action Buttons */}
+        <div className="mt-auto flex-shrink-0 space-y-3">
+          {allowanceData && (
+            <button
+              onClick={handleExtendTimer}
+              disabled={allowanceHook.extending || !publicKey || isCreatingNew}
+              className="w-full px-6 py-3 bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
+            >
+              {allowanceHook.extending
+                ? "Extending..."
+                : "Extend Session (100 SOL)"}
+            </button>
+          )}
           <button
-            onClick={handleExtendTimer}
-            disabled={allowanceHook.extending || !publicKey}
-            className="w-full px-6 py-3 bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
+            onClick={handleCreateNewSession}
+            disabled={
+              allowanceHook.approving ||
+              !publicKey ||
+              isCreatingNew ||
+              allowanceHook.extending
+            }
+            className="w-full px-6 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
           >
-            {allowanceHook.extending ? "Extending..." : "Extend Session"}
+            {isCreatingNew
+              ? "Creating New Session..."
+              : allowanceData
+                ? "Create New Session (Reclaim + 100 SOL)"
+                : "Create Session (100 SOL)"}
           </button>
         </div>
       </div>
