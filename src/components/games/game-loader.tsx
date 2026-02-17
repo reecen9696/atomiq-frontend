@@ -26,6 +26,11 @@ const GAME_COMPONENTS: Record<string, ComponentType<any>> = {
     ssr: false,
   }),
 
+  plinko: dynamic(() => import("@/components/games/plinko/Plinko"), {
+    loading: () => <GameLoadingState />,
+    ssr: false,
+  }),
+
   // Future games can be added here as they're implemented
   // Example:
   // slots: dynamic(() => import("@/components/games/slots-game").then(mod => ({ default: mod.SlotsGame })), {
