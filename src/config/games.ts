@@ -128,8 +128,8 @@ export const GAMES: Record<string, GameConfig> = {
     category: "arcade",
     minBet: 0.01,
     maxBet: 20,
-    enabled: false,
-    featured: false,
+    enabled: true,
+    featured: true,
     route: "/casino/plinko",
   },
 
