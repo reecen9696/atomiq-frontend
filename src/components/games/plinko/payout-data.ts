@@ -1,6 +1,6 @@
 /**
  * Plinko Game - Payout Data and Configuration
- * 
+ *
  * This file contains all the payout multipliers, physics configuration,
  * and game constants for the Plinko game.
  */

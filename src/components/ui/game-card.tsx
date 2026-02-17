@@ -22,6 +22,7 @@ export const GameCard = React.memo<GameCardProps>(
       const gameRoute = slug || title.toLowerCase().replace(/\s+/g, "-");
       router.push(`/casino/${gameRoute}`);
     };
+
     return (
       <div
         onClick={handleClick}

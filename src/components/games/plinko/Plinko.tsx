@@ -19,7 +19,9 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
-// Configuration - using blockchain API  
+import { useBalance } from "@/hooks/useBalance";
+import { toast } from "@/lib/toast";
+// Configuration - using blockchain API
 const Config = {
   Root: {
     blockchainApiUrl:
@@ -298,13 +300,14 @@ interface RippleEffect {
 const Plinko = () => {
   const classes = useStyles();
   const { publicKey, signMessage } = useWallet();
-  const { isConnected, user, updateVaultInfo, openWalletModal } = useAuthStore();
-  
+  const { isConnected, user, updateVaultInfo, openWalletModal } =
+    useAuthStore();
+
   // Initialize allowance service for wallet signatures
   const allowanceService = useAtomikAllowance();
   const allowance = useAllowanceForCasino(
     publicKey?.toBase58() ?? null,
-    allowanceService
+    allowanceService,
   );
 
   // Game state
@@ -355,7 +358,14 @@ const Plinko = () => {
     isGrowing: boolean;
     r: number;
 
-    constructor(x: number, y: number, r: number, bucketIndex: number, balance: number, color: any) {
+    constructor(
+      x: number,
+      y: number,
+      r: number,
+      bucketIndex: number,
+      balance: number,
+      color: any,
+    ) {
       const options = {
         restitution: 0.6,
         collisionFilter: {
@@ -379,15 +389,16 @@ const Plinko = () => {
       p5.noStroke();
       const riskColor = risk.toLowerCase();
       const colors = particleColor[riskColor as keyof typeof particleColor];
-      const gradient = p5.drawingContext.createRadialGradient(0, 0, 0, 0, 0, this.r);
-      gradient.addColorStop(
+      const gradient = p5.drawingContext.createRadialGradient(
         0,
-        `rgb(${colors.r1}, ${colors.g1}, ${colors.b1})`
+        0,
+        0,
+        0,
+        0,
+        this.r,
       );
-      gradient.addColorStop(
-        1,
-        `rgb(${colors.r2}, ${colors.g2}, ${colors.b2})`
-      );
+      gradient.addColorStop(0, `rgb(${colors.r1}, ${colors.g1}, ${colors.b1})`);
+      gradient.addColorStop(1, `rgb(${colors.r2}, ${colors.g2}, ${colors.b2})`);
       p5.drawingContext.fillStyle = gradient;
       p5.ellipse(0, 0, this.r * 2);
       p5.pop();
@@ -446,7 +457,13 @@ const Plinko = () => {
         isStatic: true,
         angle: angle,
       };
-      this.body = Bodies.rectangle((x1 + x2) / 2, (y1 + y2) / 2, distance, wallWidth, options);
+      this.body = Bodies.rectangle(
+        (x1 + x2) / 2,
+        (y1 + y2) / 2,
+        distance,
+        wallWidth,
+        options,
+      );
       this.w = distance;
       this.h = wallWidth;
       World.add(worldRef.current!, this.body);
@@ -515,21 +532,25 @@ const Plinko = () => {
   }
 
   // Initialize physics engine
-  const setupPhysics = useCallback((p5: any) => {
-    // Initialize Matter.js seed for consistent physics
-    (Matter.Common as any)._seed = 12345678;
-    
-    engineRef.current = Engine.create({});
-    engineRef.current.world.gravity.y = 1.5;
-    worldRef.current = engineRef.current.world;
+  const setupPhysics = useCallback(
+    (p5: any) => {
+      // Initialize Matter.js seed for consistent physics
+      (Matter.Common as any)._seed = 12345678;
 
-    // Initialize plinkos/pegs
-    initializePlinkos();
-  }, [rowCount]);
+      engineRef.current = Engine.create({});
+      engineRef.current.world.gravity.y = 1.5;
+      worldRef.current = engineRef.current.world;
+
+      // Initialize plinkos/pegs
+      initializePlinkos();
+    },
+    [rowCount],
+  );
 
   // Initialize plinkos based on row count
   const initializePlinkos = useCallback(() => {
-    const startX = (canvasWidth - (rowCount + 1) * plinkoDistanceX[rowCount]) / 2;
+    const startX =
+      (canvasWidth - (rowCount + 1) * plinkoDistanceX[rowCount]) / 2;
 
     // Clear existing plinkos
     plinkosRef.current.forEach((p) => World.remove(worldRef.current!, p.body));
@@ -544,8 +565,8 @@ const Plinko = () => {
               ((rowCount - (i + 1)) * plinkoDistanceX[rowCount]) / 2 +
               j * plinkoDistanceX[rowCount],
             50 + i * plinkoDistanceY[rowCount],
-            plinkoRadius[rowCount]
-          )
+            plinkoRadius[rowCount],
+          ),
         );
       }
     }
@@ -563,8 +584,8 @@ const Plinko = () => {
           plinkoRadius[rowCount],
         50,
         startX - wallWidth - plinkoRadius[rowCount],
-        50 + (rowCount - 1) * plinkoDistanceY[rowCount]
-      )
+        50 + (rowCount - 1) * plinkoDistanceY[rowCount],
+      ),
     );
     wallsRef.current.push(
       new WallClass(
@@ -577,8 +598,8 @@ const Plinko = () => {
           (rowCount + 1) * plinkoDistanceX[rowCount] +
           plinkoRadius[rowCount] +
           wallWidth,
-        50 + (rowCount - 1) * plinkoDistanceY[rowCount]
-      )
+        50 + (rowCount - 1) * plinkoDistanceY[rowCount],
+      ),
     );
   }, [rowCount]);
 
@@ -665,10 +686,20 @@ const Plinko = () => {
     try {
       playStart();
 
+      // Check if user has enough balance
+      if (!user?.vaultBalance || user.vaultBalance < betAmount) {
+        toast.error("Insufficient funds", "Please fund your wallet to continue playing.");
+        setPlayLoading(false);
+        return;
+      }
+
       // Get allowance nonce/play session
       const playSession = allowance.getCachedPlaySession();
       if (!playSession || !playSession.nonce) {
-        console.error("No valid play session found");
+        toast.error(
+          "No active play session",
+          "Please approve an allowance first by clicking the wallet icon."
+        );
         setPlayLoading(false);
         return;
       }
@@ -696,21 +727,22 @@ const Plinko = () => {
 
       const response = await axios.post(
         `${Config.Root.blockchainApiUrl}/api/plinko/play`,
-        requestData
+        requestData,
       );
 
       console.log("✅ Plinko response:", response.data);
 
       if (response.data && response.data.status === "complete") {
         setBetResponse(response.data);
-        
+
         // Update vault balance
         if (updateVaultInfo && user?.vaultAddress) {
           const currentBalance = user.vaultBalance || 0;
           const winAmount = betAmount * response.data.result.multiplier;
-          const newBalance = response.data.result.outcome === 'win' ? 
-            currentBalance + (winAmount - betAmount) : 
-            currentBalance - betAmount;
+          const newBalance =
+            response.data.result.outcome === "win"
+              ? currentBalance + (winAmount - betAmount)
+              : currentBalance - betAmount;
           updateVaultInfo(user.vaultAddress, newBalance);
         }
 
@@ -754,11 +786,11 @@ const Plinko = () => {
   const dropBall = (bucketIndex: number) => {
     const tmpCurRows = rowCount;
     const startX = canvasWidth / 2 - plinkoDistanceX[tmpCurRows] + 1;
-    
+
     // Use bucket position arrays for proper path if available
     const bucketPositions = payoutResult[tmpCurRows]?.[bucketIndex];
     let dropX = startX;
-    
+
     if (bucketPositions && bucketPositions.length > 0) {
       const randomIdx = Math.floor(Math.random() * bucketPositions.length);
       dropX = startX + bucketPositions[randomIdx];
@@ -766,14 +798,14 @@ const Plinko = () => {
       // Fallback: small random offset from center
       dropX = canvasWidth / 2 + (Math.random() - 0.5) * 20;
     }
-    
+
     const particle = new ParticleClass(
       dropX,
       5,
       plinkoRadius[tmpCurRows] * 1.6,
       bucketIndex,
       betAmount,
-      particleColor[risk.toLowerCase() as keyof typeof particleColor]
+      particleColor[risk.toLowerCase() as keyof typeof particleColor],
     );
     particlesRef.current.push(particle);
 
@@ -782,26 +814,33 @@ const Plinko = () => {
       const collisionHandler = (event: any) => {
         for (let i = 0; i < event.pairs.length; i++) {
           const pair = event.pairs[i];
-          const findItem = ripplesRef.current.find((item) => item?.id === pair?.id);
+          const findItem = ripplesRef.current.find(
+            (item) => item?.id === pair?.id,
+          );
           if (findItem) return;
-          
+
           const pairBody = [pair.bodyA, pair.bodyB];
           let pairIndex = -1;
-          
+
           // Match original: check isStatic and "Circle Body" label
           if (pair.bodyA.isStatic && pair.bodyA.label === "Circle Body") {
             pairIndex = 0;
-          } else if (pair.bodyB.isStatic && pair.bodyA.label === "Circle Body") {
+          } else if (
+            pair.bodyB.isStatic &&
+            pair.bodyA.label === "Circle Body"
+          ) {
             pairIndex = 1;
           }
-          
+
           if (pairIndex >= 0) {
             let flag = 0;
             for (let j = 0; j < ripplesRef.current.length; j++) {
               if (
                 ripplesRef.current[j] &&
-                (ripplesRef.current[j] as any).body?.position?.x === pairBody[pairIndex].position.x &&
-                (ripplesRef.current[j] as any).body?.position?.y === pairBody[pairIndex].position.y
+                (ripplesRef.current[j] as any).body?.position?.x ===
+                  pairBody[pairIndex].position.x &&
+                (ripplesRef.current[j] as any).body?.position?.y ===
+                  pairBody[pairIndex].position.y
               ) {
                 ripplesRef.current[j].r = plinkoRadius[rowCount];
                 flag = 1;
@@ -814,8 +853,8 @@ const Plinko = () => {
                   pair.id,
                   pairBody[pairIndex],
                   plinkoRadius[rowCount],
-                  plinkoRadius[rowCount] + 10
-                )
+                  plinkoRadius[rowCount] + 10,
+                ),
               );
             }
           }
@@ -859,13 +898,16 @@ const Plinko = () => {
         particlesRef.current[i].display(p5);
 
         // Case of particle falls down the ground (matches original: canvasHeight - particle.r)
-        if (particlesRef.current[i].body.position.y >= canvasHeight - particlesRef.current[i].r) {
+        if (
+          particlesRef.current[i].body.position.y >=
+          canvasHeight - particlesRef.current[i].r
+        ) {
           // Calculate payoutId from X position like original
           const startX =
-            (canvasWidth -
-              (rowCount + 1) * plinkoDistanceX[rowCount]) / 2;
+            (canvasWidth - (rowCount + 1) * plinkoDistanceX[rowCount]) / 2;
           const payoutId = Math.floor(
-            (particlesRef.current[i].body.position.x - startX) / plinkoDistanceX[rowCount]
+            (particlesRef.current[i].body.position.x - startX) /
+              plinkoDistanceX[rowCount],
           );
           const balance = particlesRef.current[i].balance;
 
@@ -882,8 +924,15 @@ const Plinko = () => {
           }
 
           // Win processing
-          const clampedPayoutId = Math.max(0, Math.min(payoutId, payoutDefaultValue[rowCount - ROWS.min][risk].length - 1));
-          const payout = payoutDefaultValue[rowCount - ROWS.min][risk][clampedPayoutId];
+          const clampedPayoutId = Math.max(
+            0,
+            Math.min(
+              payoutId,
+              payoutDefaultValue[rowCount - ROWS.min][risk].length - 1,
+            ),
+          );
+          const payout =
+            payoutDefaultValue[rowCount - ROWS.min][risk][clampedPayoutId];
           if (payout > 1) {
             playWin();
           } else if (payout === 1) {
@@ -994,7 +1043,7 @@ const Plinko = () => {
                 >
                   {Array.from(
                     { length: ROWS.max - ROWS.min + 1 },
-                    (_, i) => ROWS.min + i
+                    (_, i) => ROWS.min + i,
                   ).map((row) => (
                     <MenuItem key={row} value={row}>
                       {row}
@@ -1014,9 +1063,7 @@ const Plinko = () => {
                   className={classes.InputStyle}
                   type="number"
                   value={autoCount}
-                  onChange={(e) =>
-                    setAutoCount(parseInt(e.target.value) || 1)
-                  }
+                  onChange={(e) => setAutoCount(parseInt(e.target.value) || 1)}
                   min={1}
                   max={100}
                   step={1}

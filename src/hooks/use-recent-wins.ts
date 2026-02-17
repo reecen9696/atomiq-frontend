@@ -6,6 +6,7 @@ import { handleQueryError } from "@/lib/error-handling";
 import { mockWinners } from "@/mocks";
 import { env } from "@/config/env";
 import { Winner } from "@/types/winner";
+import { toast } from "@/lib/toast";
 
 /**
  * Hook for fetching recent winners with direct WebSocket updates
@@ -20,6 +21,7 @@ export function useRecentWins(limit?: number) {
   const [isLive, setIsLive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const hasShownErrorToast = useRef(false);
 
   // Always fetch data via polling - this ensures we never return undefined
   const query = useQuery({
@@ -33,9 +35,14 @@ export function useRecentWins(limit?: number) {
         console.log("🎰 Fetching recent wins from API...");
         const response = await api.winners.getRecent(actualLimit);
         console.log("🎰 Recent wins response:", response.data);
+        hasShownErrorToast.current = false; // Reset on success
         return response.data || []; // Ensure we never return undefined
       } catch (error) {
         console.error("🎰 Winners API failed:", error);
+        if (!hasShownErrorToast.current) {
+          toast.error("Cannot connect to server", "Failed to load recent wins");
+          hasShownErrorToast.current = true;
+        }
         return []; // Return empty array instead of throwing to prevent undefined
       }
     },

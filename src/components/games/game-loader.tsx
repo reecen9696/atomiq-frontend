@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { ComponentType } from "react";
 import { GameConfig } from "@/config/games";
+import { GameAvailabilityWrapper } from "./game-availability-wrapper";
 
 /**
  * Game component map
@@ -52,7 +53,11 @@ export function GameLoader({ game }: GameLoaderProps) {
     return <GameNotImplemented game={game} />;
   }
 
-  return <GameComponent />;
+  return (
+    <GameAvailabilityWrapper>
+      <GameComponent />
+    </GameAvailabilityWrapper>
+  );
 }
 
 /**

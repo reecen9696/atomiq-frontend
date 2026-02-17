@@ -32,16 +32,6 @@ export function RecentBlocks({ limit = 5 }: RecentBlocksProps) {
     isConnecting,
   });
 
-  if (error) {
-    return (
-      <Card className="h-full">
-        <CardContent className="flex items-center justify-center h-full">
-          <p className="text-sm text-red-500">Failed to load recent blocks</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="h-full flex flex-col p-6">
       <CardHeader className="flex-row justify-between items-center mb-4 ">
@@ -61,7 +51,9 @@ export function RecentBlocks({ limit = 5 }: RecentBlocksProps) {
       <CardContent className="flex flex-col h-full justify-between ">
         {isLoading ? (
           <BlocksSkeleton count={limit} />
-        ) : blocks && blocks.length > 0 ? (
+        ) : error || !blocks || blocks.length === 0 ? (
+          <BlocksSkeleton count={limit} isStatic />
+        ) : (
           blocks.map((block, index) => (
             <BlockItem
               key={block.id}
@@ -70,8 +62,6 @@ export function RecentBlocks({ limit = 5 }: RecentBlocksProps) {
               isLive={isLive || false}
             />
           ))
-        ) : (
-          <p className="text-sm text-white/60 text-center">No blocks found</p>
         )}
       </CardContent>
     </Card>
@@ -118,21 +108,21 @@ function BlockItem({
 /**
  * Loading skeleton for blocks
  */
-function BlocksSkeleton({ count }: { count: number }) {
+function BlocksSkeleton({ count, isStatic }: { count: number; isStatic?: boolean }) {
   return (
     <>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="flex flex-row justify-between">
           <div className="flex flex-row gap-2 items-center">
-            <Skeleton className="h-10 w-10 rounded-full" />
+            <Skeleton className="h-10 w-10 rounded-full" isStatic={isStatic} />
             <div className="space-y-1">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-4 w-20" isStatic={isStatic} />
+              <Skeleton className="h-3 w-24" isStatic={isStatic} />
             </div>
           </div>
           <div className="text-right space-y-1">
-            <Skeleton className="h-4 w-12 ml-auto" />
-            <Skeleton className="h-3 w-16 ml-auto" />
+            <Skeleton className="h-4 w-12 ml-auto" isStatic={isStatic} />
+            <Skeleton className="h-3 w-16 ml-auto" isStatic={isStatic} />
           </div>
         </div>
       ))}

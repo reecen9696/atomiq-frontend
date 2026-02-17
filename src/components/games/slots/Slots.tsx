@@ -19,6 +19,8 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
+import { useBalance } from "@/hooks/useBalance";
+import { toast } from "@/lib/toast";
 import { SlotApp } from "./SlotApp";
 import { TOTAL_LINES, BET_TYPE } from "./data/constants";
 
@@ -319,6 +321,13 @@ const Slots: React.FC = () => {
       return;
     }
 
+    // Check if user has enough balance
+    if (!currentUser?.vaultBalance || currentUser.vaultBalance < betAmount) {
+      toast.error("Insufficient funds", "Please fund your wallet to continue playing.");
+      setPlayLoading(false);
+      return;
+    }
+
     // Get play session for nonce
     const playSession = allowance.getCachedPlaySession();
     if (!playSession) {
@@ -326,12 +335,14 @@ const Slots: React.FC = () => {
         `atomik:playSession:${publicKey.toBase58()}`,
       );
       if (cachedData) {
-        alert(
-          "Your play session has expired. Please click the timer button to extend your session.",
+        toast.error(
+          "Play session expired",
+          "Please click the timer button to extend your session."
         );
       } else {
-        alert(
-          "No active play session found. Please approve an allowance first by clicking the wallet icon.",
+        toast.error(
+          "No active play session",
+          "Please approve an allowance first by clicking the wallet icon."
         );
       }
       setPlayLoading(false);
