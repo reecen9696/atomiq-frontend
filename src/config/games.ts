@@ -86,8 +86,8 @@ export const GAMES: Record<string, GameConfig> = {
     category: "slots",
     minBet: 0.01,
     maxBet: 50,
-    enabled: false,
-    featured: false,
+    enabled: true,
+    featured: true,
     route: "/casino/slots",
   },
 
