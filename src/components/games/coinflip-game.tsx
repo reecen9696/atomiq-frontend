@@ -12,6 +12,8 @@ import type { CoinflipResult } from "@/lib/sdk";
 import { bettingToast, toast } from "@/lib/toast";
 import { useBetTrackingStore } from "@/stores/bet-tracking-store";
 import { useSettlementErrors } from "@/hooks/useSettlementErrors";
+import { useBetGuard } from "@/hooks/useBetGuard";
+import type { BetGuardHandle } from "@/hooks/useBetGuard";
 
 export function CoinflipGame() {
   const wallet = useWallet();
@@ -26,6 +28,10 @@ export function CoinflipGame() {
 
   const { addPendingBet, updateBetTransactionId, removePendingBet } =
     useBetTrackingStore();
+
+  // Bet guard — prevents over-betting by immediately deducting from optimistic balance
+  const { guardBet } = useBetGuard();
+  const activeGuardRef = useRef<BetGuardHandle | null>(null);
 
   // Initialize settlement error handling
   useSettlementErrors();
@@ -70,9 +76,15 @@ export function CoinflipGame() {
       const betAmount = result.result.payment?.bet_amount || 0;
       const outcome = result.result.outcome;
 
-      // ✅ Use atomic balance update method
-      const { processBetOutcome } = useAuthStore.getState();
-      processBetOutcome(betAmount, won, payout);
+      // Resolve the bet guard (balance already deducted in handleBetClick)
+      if (activeGuardRef.current && !activeGuardRef.current.settled) {
+        activeGuardRef.current.resolve(won, payout);
+        activeGuardRef.current = null;
+      } else {
+        // Fallback: no guard (shouldn't happen, but safe)
+        const { processBetOutcome } = useAuthStore.getState();
+        processBetOutcome(betAmount, won, payout);
+      }
 
       // Show toast notification
       if (won) {
@@ -134,15 +146,6 @@ export function CoinflipGame() {
       return;
     }
 
-    // Check if user has enough balance
-    if (!user?.vaultBalance || user.vaultBalance < amount) {
-      toast.error(
-        "Insufficient funds",
-        "Please fund your wallet to continue playing.",
-      );
-      return;
-    }
-
     if (amount < 0.01) {
       toast.warning("Minimum bet", "Minimum bet is 0.01 SOL");
       return;
@@ -152,6 +155,11 @@ export function CoinflipGame() {
       toast.warning("Maximum bet", "Maximum bet is 10 SOL");
       return;
     }
+
+    // Guard the bet — immediately deducts from optimistic balance
+    const guard = guardBet(amount);
+    if (!guard) return; // insufficient funds
+    activeGuardRef.current = guard;
 
     // Create unique game ID
     const gameId = `${Date.now()}-${selectedSide}-${amount}`;
@@ -189,6 +197,7 @@ export function CoinflipGame() {
         }
         toast.dismiss(toastId);
         removePendingBet(gameId);
+        guard.revert();
         return;
       }
 
@@ -207,8 +216,9 @@ export function CoinflipGame() {
         }
       }
     } catch (error) {
-      // Remove pending bet on error
+      // Remove pending bet on error and revert balance
       removePendingBet(gameId);
+      guard.revert();
       throw error;
     } finally {
       toast.dismiss(toastId);

@@ -5,6 +5,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { solanaService } from "@/services/solana";
 import { logger } from "@/lib/logger";
+import { getInFlightTotal } from "@/hooks/useBetGuard";
 
 // Reconciliation configuration
 const RECONCILIATION_INTERVAL = 30000; // 30 seconds
@@ -113,18 +114,28 @@ export function useVaultBalance() {
           Number(vaultInfo.state.solBalanceLamports || 0n) / 1e9;
         const currentOptimisticBalance = user?.vaultBalance || 0;
 
-        // Check if balances have drifted beyond threshold
-        const drift = Math.abs(onChainBalance - currentOptimisticBalance);
-        if (drift > BALANCE_DRIFT_THRESHOLD) {
-          logger.info(
-            `Balance drift detected: ${drift.toFixed(4)} SOL. Reconciling...`,
-          );
-          logger.info(
-            `On-chain: ${onChainBalance.toFixed(4)} SOL, Optimistic: ${currentOptimisticBalance.toFixed(4)} SOL`,
-          );
+        // Account for in-flight bets that have been optimistically deducted
+        // but not yet settled on-chain. Without this, reconciliation would
+        // "undo" the optimistic deductions and make the balance jump up.
+        const inFlightAmount = getInFlightTotal();
+        const expectedOnChain = currentOptimisticBalance + inFlightAmount;
 
-          // Update to on-chain value
-          updateVaultInfo(vaultInfo.address, onChainBalance);
+        // Only reconcile if the drift exceeds threshold AFTER accounting
+        // for in-flight bets. This prevents the balance from jumping on
+        // page refresh or periodic reconciliation.
+        const adjustedDrift = Math.abs(onChainBalance - expectedOnChain);
+        if (adjustedDrift > BALANCE_DRIFT_THRESHOLD) {
+          // The on-chain balance genuinely differs from what we expect.
+          // Subtract in-flight bets from on-chain to get the correct
+          // optimistic display value.
+          const reconciledBalance = Math.max(0, onChainBalance - inFlightAmount);
+          logger.info(
+            `Balance reconciliation: on-chain=${onChainBalance.toFixed(4)}, ` +
+            `optimistic=${currentOptimisticBalance.toFixed(4)}, ` +
+            `in-flight=${inFlightAmount.toFixed(4)}, ` +
+            `reconciled=${reconciledBalance.toFixed(4)} SOL`,
+          );
+          updateVaultInfo(vaultInfo.address, reconciledBalance);
         }
       }
     } catch (err) {

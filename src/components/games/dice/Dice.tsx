@@ -13,6 +13,7 @@ import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
 import { toast } from "@/lib/toast";
 import { gameApiClient, validateBet } from "@/lib/security";
+import { useBetGuard } from "@/hooks/useBetGuard";
 
 import DiceL from "./utils/DiceL";
 import DiceR from "./utils/DiceR";
@@ -453,6 +454,9 @@ const Dice: React.FC = () => {
     allowanceService,
   );
 
+  // Bet guard — prevents over-betting by immediately deducting from optimistic balance
+  const { guardBet } = useBetGuard();
+
   // Replace mock data with actual wallet/auth data
   const authData = {
     isAuth: isConnected && publicKey && user,
@@ -539,13 +543,9 @@ const Dice: React.FC = () => {
     ) {
       processedBetRef.current = betResponse.game_id;
 
-      // ✅ Update balance based on bet outcome using atomic method
+      // Balance already handled by guard.resolve() in handlePlay.
+      // This effect is only for animation and display updates.
       const won = betResponse.outcome === "win";
-      const payoutAmount = betResponse.payment?.payout_amount || 0;
-      const betAmountNum = betResponse.payment?.bet_amount || 0;
-
-      const { processBetOutcome } = useAuthStore.getState();
-      processBetOutcome(betAmountNum, won, payoutAmount);
 
       const animContainer =
         document.getElementsByClassName("DiceAnimContainer")[0];
@@ -636,15 +636,6 @@ const Dice: React.FC = () => {
       return;
     }
 
-    // Check if user has enough balance
-    if (!user?.vaultBalance || user.vaultBalance < betAmount) {
-      toast.error(
-        "Insufficient funds",
-        "Please fund your wallet to continue playing.",
-      );
-      return;
-    }
-
     // Phase 4.2: Check wallet supports message signing
     if (!signMessage) {
       console.error("Wallet does not support message signing");
@@ -665,6 +656,17 @@ const Dice: React.FC = () => {
       return;
     }
 
+    // Client-side validation before anything else
+    const betCheck = validateBet(betAmount, "dice");
+    if (!betCheck.valid) {
+      toast.error("Invalid bet", betCheck.error || "Check your bet amount");
+      return;
+    }
+
+    // Guard the bet — immediately deducts from optimistic balance
+    const guard = guardBet(betAmount);
+    if (!guard) return; // insufficient funds
+
     playEffectSound(playClickSound);
     const animContainer =
       document.getElementsByClassName("DiceAnimContainer")[0];
@@ -683,7 +685,6 @@ const Dice: React.FC = () => {
       // Phase 4.2: Get current play session for nonce
       const playSession = allowance.getCachedPlaySession();
       if (!playSession) {
-        // Check if session exists but expired
         const cachedData = localStorage.getItem(
           `atomik:playSession:${publicKey?.toBase58()}`,
         );
@@ -698,6 +699,7 @@ const Dice: React.FC = () => {
             "Please approve an allowance first by clicking the wallet icon.",
           );
         }
+        guard.revert();
         setPlayLoading(false);
         return;
       }
@@ -715,14 +717,6 @@ const Dice: React.FC = () => {
         allowance_nonce: playSession.nonce,
       };
 
-      // Client-side validation before API call
-      const betCheck = validateBet(betAmount, "dice");
-      if (!betCheck.valid) {
-        toast.error("Invalid bet", betCheck.error || "Check your bet amount");
-        setPlayLoading(false);
-        return;
-      }
-
       console.log("📤 Sending dice play request");
 
       const result = await gameApiClient.dice.play({
@@ -734,6 +728,7 @@ const Dice: React.FC = () => {
       if (!result.success) {
         console.error("❌ Dice play error:", result.error);
         toast.error("Bet failed", result.error || "Unknown error");
+        guard.revert();
         setPlayLoading(false);
         return;
       }
@@ -742,16 +737,25 @@ const Dice: React.FC = () => {
       console.log("✅ Dice response received:", responseData);
 
       if (responseData?.status === "complete" && responseData?.result) {
+        // Resolve the bet guard — adds payout on wins
+        const won = responseData.result.outcome === "win";
+        const payout = responseData.result.payment?.payout_amount || 0;
+        guard.resolve(won, payout);
         setBetResponse(responseData.result);
       } else if (responseData?.result) {
+        const won = responseData.result.outcome === "win";
+        const payout = responseData.result.payment?.payout_amount || 0;
+        guard.resolve(won, payout);
         setBetResponse(responseData.result);
       } else {
         console.error("❌ Invalid response format:", responseData);
+        guard.revert();
         throw new Error("Invalid response from server");
       }
     } catch (error: any) {
       console.error("❌ Dice play error:", error);
       toast.error("Bet failed", error.message || "An unexpected error occurred");
+      guard.revert();
       setPlayLoading(false);
     }
   };

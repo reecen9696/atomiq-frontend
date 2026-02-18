@@ -20,6 +20,7 @@ import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
 import { toast } from "@/lib/toast";
 import { gameApiClient, validateBet } from "@/lib/security";
+import { useBetGuard } from "@/hooks/useBetGuard";
 import { SlotApp } from "./SlotApp";
 import { TOTAL_LINES, BET_TYPE } from "./data/constants";
 
@@ -289,6 +290,9 @@ const Slots: React.FC = () => {
     allowanceService,
   );
 
+  // Bet guard — prevents over-betting by immediately deducting from optimistic balance
+  const { guardBet } = useBetGuard();
+
   const setting = { min: 1, max: 1000 };
   const [betType, setBetType] = useState<number>(BET_TYPE.manual);
   const [playLoading, setPlayLoading] = useState(false);
@@ -310,24 +314,24 @@ const Slots: React.FC = () => {
   const placeBet = useCallback(async () => {
     if (!isConnected || !publicKey) return;
 
-    setPlayLoading(true);
-
     const currentUser = useAuthStore.getState().user;
     if (!currentUser?.vaultAddress) {
       console.error("Vault not found");
-      setPlayLoading(false);
       return;
     }
 
-    // Check if user has enough balance
-    if (!currentUser?.vaultBalance || currentUser.vaultBalance < betAmount) {
-      toast.error(
-        "Insufficient funds",
-        "Please fund your wallet to continue playing.",
-      );
-      setPlayLoading(false);
+    // Client-side validation before anything else
+    const betCheck = validateBet(betAmount, "slot");
+    if (!betCheck.valid) {
+      toast.error("Invalid bet", betCheck.error || "Check your bet amount");
       return;
     }
+
+    // Guard the bet — immediately deducts from optimistic balance
+    const guard = guardBet(betAmount);
+    if (!guard) return; // insufficient funds
+
+    setPlayLoading(true);
 
     // Get play session for nonce
     const playSession = allowance.getCachedPlaySession();
@@ -346,14 +350,7 @@ const Slots: React.FC = () => {
           "Please approve an allowance first by clicking the wallet icon.",
         );
       }
-      setPlayLoading(false);
-      return;
-    }
-
-    // Client-side validation before API call
-    const betCheck = validateBet(betAmount, "slot");
-    if (!betCheck.valid) {
-      toast.error("Invalid bet", betCheck.error || "Check your bet amount");
+      guard.revert();
       setPlayLoading(false);
       return;
     }
@@ -375,6 +372,7 @@ const Slots: React.FC = () => {
 
       if (!result.success) {
         toast.error("Bet failed", result.error || "Unknown error");
+        guard.revert();
         setPlayLoading(false);
         return;
       }
@@ -393,19 +391,14 @@ const Slots: React.FC = () => {
             win.payline_index,
           ]) || [];
 
-        // Update balance using atomic method
-        const betAmountNum = result.payment?.bet_amount || betAmount;
+        // Resolve the bet guard — adds payout on wins
         const payoutAmount = result.payment?.payout_amount || 0;
         const won = payoutAmount > 0;
-
-        const { processBetOutcome } = useAuthStore.getState();
-        processBetOutcome(betAmountNum, won, payoutAmount);
+        guard.resolve(won, payoutAmount);
 
         // Show results in PixiJS
         if (gameAppRef.current) {
           gameAppRef.current.showResult(fairResult, rewardData);
-          // Safety timeout: if PixiJS animation callback fails to fire,
-          // ensure the button is re-enabled after max animation time
           setTimeout(() => {
             setPlayLoading(false);
           }, 8000);
@@ -413,6 +406,7 @@ const Slots: React.FC = () => {
           setPlayLoading(false);
         }
       } else {
+        guard.revert();
         setPlayLoading(false);
         console.error(
           "Slot bet failed:",
@@ -422,6 +416,7 @@ const Slots: React.FC = () => {
     } catch (error: any) {
       console.error("Slot error:", error);
       toast.error("Bet failed", error.message || "An unexpected error occurred");
+      guard.revert();
       setPlayLoading(false);
     }
   }, [

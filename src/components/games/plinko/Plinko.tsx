@@ -20,6 +20,8 @@ import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
 import { toast } from "@/lib/toast";
 import { gameApiClient, validateBet } from "@/lib/security";
+import { useBetGuard } from "@/hooks/useBetGuard";
+import type { BetGuardHandle } from "@/hooks/useBetGuard";
 // Configuration - using blockchain API
 const Config = {
   Root: {
@@ -272,6 +274,7 @@ interface Particle {
     betAmount: number;
     won: boolean;
     payout: number;
+    guard?: BetGuardHandle;
   };
   display: (p5: any) => void;
   grow: () => void;
@@ -312,6 +315,9 @@ const Plinko = () => {
     publicKey?.toBase58() ?? null,
     allowanceService,
   );
+
+  // Bet guard — prevents over-betting by immediately deducting from optimistic balance
+  const { guardBet } = useBetGuard();
 
   // Game state
   const [betType, setBetType] = useState<BET_TYPE>(BET_TYPE.manual);
@@ -364,6 +370,7 @@ const Plinko = () => {
       betAmount: number;
       won: boolean;
       payout: number;
+      guard?: BetGuardHandle;
     };
 
     constructor(
@@ -687,22 +694,24 @@ const Plinko = () => {
       return;
     }
 
-    if (playLoading) return;
+    // Client-side validation before anything else
+    const betCheck = validateBet(betAmount, "plinko");
+    if (!betCheck.valid) {
+      toast.error("Invalid bet", betCheck.error || "Check your bet amount");
+      return;
+    }
+
+    // Guard the bet — immediately deducts from optimistic balance.
+    // This prevents rapid-click over-betting: if balance is 1.1 SOL and
+    // you click bet 1.0 SOL twice quickly, the second call sees 0.1 SOL
+    // and returns null.
+    const guard = guardBet(betAmount);
+    if (!guard) return; // insufficient funds (toast shown by guardBet)
 
     setPlayLoading(true);
 
     try {
       playStart();
-
-      // Check if user has enough balance
-      if (!user?.vaultBalance || user.vaultBalance < betAmount) {
-        toast.error(
-          "Insufficient funds",
-          "Please fund your wallet to continue playing.",
-        );
-        setPlayLoading(false);
-        return;
-      }
 
       // Get allowance nonce/play session
       const playSession = allowance.getCachedPlaySession();
@@ -711,20 +720,15 @@ const Plinko = () => {
           "No active play session",
           "Please approve an allowance first by clicking the wallet icon.",
         );
+        guard.revert();
         setPlayLoading(false);
         return;
       }
 
-      // Construct auth data similar to Dice game
-      const userData = {
-        _id: publicKey.toBase58(),
-        vaultAddress: user.vaultAddress,
-      };
-
       const requestData = {
-        player_id: userData._id,
+        player_id: publicKey.toBase58(),
         player_address: publicKey.toBase58(),
-        vault_address: userData.vaultAddress,
+        vault_address: user.vaultAddress,
         bet_amount: betAmount,
         rows: rowCount,
         risk: risk.toLowerCase(),
@@ -733,14 +737,6 @@ const Plinko = () => {
         },
         allowance_nonce: playSession.nonce,
       };
-
-      // Client-side validation before API call
-      const betCheck = validateBet(betAmount, "plinko");
-      if (!betCheck.valid) {
-        toast.error("Invalid bet", betCheck.error || "Check your bet amount");
-        setPlayLoading(false);
-        return;
-      }
 
       console.log("📤 Plinko request:", requestData);
 
@@ -752,6 +748,7 @@ const Plinko = () => {
       if (!result.success) {
         console.error("❌ Plinko play error:", result.error);
         toast.error("Bet failed", result.error || "Unknown error");
+        guard.revert();
         setPlayLoading(false);
         return;
       }
@@ -762,25 +759,28 @@ const Plinko = () => {
       if (responseData && (responseData.status === "complete" || responseData.result)) {
         setBetResponse(responseData);
 
-        // Store bet outcome on the particle — balance will update when ball lands
         const won = responseData.result.outcome === "win";
-        const serverBetAmount = responseData.result.payment?.bet_amount || betAmount;
         const payout = responseData.result.payment?.payout_amount || (won ? betAmount * responseData.result.multiplier : 0);
 
-        // Drop ball - allow immediate next bet
+        // Drop ball with the guard handle — resolve() will be called when ball lands.
+        // The bet amount was already deducted by guardBet(), so dropBall just
+        // needs to add payout when the ball reaches the bottom.
         dropBall(responseData.result.bucket, {
-          betAmount: serverBetAmount,
+          betAmount,
           won,
           payout,
+          guard, // Pass guard to resolve when ball lands
         });
         setPlayLoading(false);
       } else {
         console.error("❌ Invalid response format:", responseData);
+        guard.revert();
         setPlayLoading(false);
       }
     } catch (error: any) {
       console.error("❌ Plinko bet error:", error);
       toast.error("Bet failed", error.message || "An unexpected error occurred");
+      guard.revert();
       setPlayLoading(false);
     }
   };
@@ -803,7 +803,7 @@ const Plinko = () => {
   };
 
   // Drop ball - matches original startPlinko()
-  const dropBall = (bucketIndex: number, betOutcome?: { betAmount: number; won: boolean; payout: number }) => {
+  const dropBall = (bucketIndex: number, betOutcome?: { betAmount: number; won: boolean; payout: number; guard?: BetGuardHandle }) => {
     const tmpCurRows = rowCount;
     const startX = canvasWidth / 2 - plinkoDistanceX[tmpCurRows] + 1;
 
@@ -939,8 +939,13 @@ const Plinko = () => {
           particlesRef.current[i].destroy();
           particlesRef.current[i] = null as any;
 
-          // Now apply the deferred balance update (when ball visually lands)
-          if (pendingOutcome) {
+          // Resolve the bet guard when ball visually lands.
+          // The bet amount was already deducted by guardBet() when the bet was placed.
+          // guard.resolve() adds payout back on wins.
+          if (pendingOutcome?.guard) {
+            pendingOutcome.guard.resolve(pendingOutcome.won, pendingOutcome.payout);
+          } else if (pendingOutcome) {
+            // Legacy fallback (no guard) — use processBetOutcome directly
             const { processBetOutcome } = useAuthStore.getState();
             processBetOutcome(pendingOutcome.betAmount, pendingOutcome.won, pendingOutcome.payout);
           }
