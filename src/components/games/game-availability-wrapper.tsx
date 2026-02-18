@@ -6,13 +6,15 @@ interface GameAvailabilityWrapperProps {
   children: React.ReactNode;
 }
 
-export function GameAvailabilityWrapper({ children }: GameAvailabilityWrapperProps) {
+export function GameAvailabilityWrapper({
+  children,
+}: GameAvailabilityWrapperProps) {
   const { isAvailable, reason } = useGameAvailability();
 
   return (
     <div className="relative w-full h-full">
       {children}
-      
+
       {/* Overlay when game is not available */}
       {!isAvailable && (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-40">

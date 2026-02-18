@@ -48,6 +48,48 @@ export interface GameConfig {
  * Add new games here to make them available throughout the app
  */
 export const GAMES: Record<string, GameConfig> = {
+  plinko: {
+    id: "plinko",
+    slug: "plinko",
+    title: "Plinko",
+    description: "Watch your bet bounce to victory",
+    image: "/games/plinko.png",
+    category: "arcade",
+    minBet: 0.01,
+    maxBet: 20,
+    enabled: true,
+    featured: true,
+    route: "/casino/plinko",
+  },
+
+  dice: {
+    id: "dice",
+    slug: "dice",
+    title: "Dice",
+    description: "Roll the dice and win big with customizable multipliers",
+    image: "/games/dice.png",
+    category: "classic",
+    minBet: 0.01,
+    maxBet: 100,
+    enabled: true,
+    featured: true,
+    route: "/casino/dice",
+  },
+
+  slots: {
+    id: "slots",
+    slug: "slots",
+    title: "Slots",
+    description: "Spin the reels for massive jackpots",
+    image: "/games/slot.png",
+    category: "slots",
+    minBet: 0.01,
+    maxBet: 50,
+    enabled: true,
+    featured: true,
+    route: "/casino/slots",
+  },
+
   coinflip: {
     id: "coinflip",
     slug: "coinflip",
@@ -62,35 +104,7 @@ export const GAMES: Record<string, GameConfig> = {
     route: "/casino/coinflip",
   },
 
-  dice: {
-    id: "dice",
-    slug: "dice",
-    title: "Dice",
-    description: "Roll the dice and win big with customizable multipliers",
-    image: "/games/game1.png",
-    category: "classic",
-    minBet: 0.01,
-    maxBet: 100,
-    enabled: true,
-    featured: true,
-    route: "/casino/dice",
-  },
-
   // Placeholder games for future implementation
-  slots: {
-    id: "slots",
-    slug: "slots",
-    title: "Slots",
-    description: "Spin the reels for massive jackpots",
-    image: "/games/game2.png",
-    category: "slots",
-    minBet: 0.01,
-    maxBet: 50,
-    enabled: true,
-    featured: true,
-    route: "/casino/slots",
-  },
-
   roulette: {
     id: "roulette",
     slug: "roulette",
@@ -117,20 +131,6 @@ export const GAMES: Record<string, GameConfig> = {
     enabled: false,
     featured: false,
     route: "/casino/blackjack",
-  },
-
-  plinko: {
-    id: "plinko",
-    slug: "plinko",
-    title: "Plinko",
-    description: "Watch your bet bounce to victory",
-    image: "/games/game5.png",
-    category: "arcade",
-    minBet: 0.01,
-    maxBet: 20,
-    enabled: true,
-    featured: true,
-    route: "/casino/plinko",
   },
 
   crash: {

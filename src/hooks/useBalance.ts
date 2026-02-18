@@ -39,7 +39,7 @@ export function useBalance() {
       } else {
         setError(errorMessage);
       }
-      
+
       // Default balance to 0 when cannot connect
       setBalance(0);
       updateBalance(0);

@@ -21,7 +21,11 @@ export function RecentWins({
       <section className="w-full">
         <div className="flex gap-4 overflow-x-auto pb-2">
           {Array.from({ length: maxDisplay }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-40 rounded-sm shrink-0" isStatic />
+            <Skeleton
+              key={i}
+              className="h-20 w-40 rounded-sm shrink-0"
+              isStatic
+            />
           ))}
         </div>
       </section>

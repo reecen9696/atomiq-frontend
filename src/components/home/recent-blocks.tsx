@@ -108,7 +108,13 @@ function BlockItem({
 /**
  * Loading skeleton for blocks
  */
-function BlocksSkeleton({ count, isStatic }: { count: number; isStatic?: boolean }) {
+function BlocksSkeleton({
+  count,
+  isStatic,
+}: {
+  count: number;
+  isStatic?: boolean;
+}) {
   return (
     <>
       {Array.from({ length: count }).map((_, i) => (

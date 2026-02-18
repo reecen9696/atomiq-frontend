@@ -661,7 +661,10 @@ const Dice: React.FC = () => {
 
     // Check if user has enough balance
     if (!user?.vaultBalance || user.vaultBalance < betAmount) {
-      toast.error("Insufficient funds", "Please fund your wallet to continue playing.");
+      toast.error(
+        "Insufficient funds",
+        "Please fund your wallet to continue playing.",
+      );
       return;
     }
 
@@ -710,12 +713,12 @@ const Dice: React.FC = () => {
         if (cachedData) {
           toast.error(
             "Play session expired",
-            "Please click the timer button in the top-right corner to extend your session."
+            "Please click the timer button in the top-right corner to extend your session.",
           );
         } else {
           toast.error(
             "No active play session",
-            "Please approve an allowance first by clicking the wallet icon."
+            "Please approve an allowance first by clicking the wallet icon.",
           );
         }
         setPlayLoading(false);

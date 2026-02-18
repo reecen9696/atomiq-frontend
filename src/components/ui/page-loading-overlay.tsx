@@ -26,13 +26,16 @@ export function PageLoadingOverlay({ isLoading }: PageLoadingOverlayProps) {
 
   // Dynamically create the dotlottie-player element
   useEffect(() => {
-    if (playerRef.current && !playerRef.current.querySelector('dotlottie-player')) {
-      const player = document.createElement('dotlottie-player');
-      player.setAttribute('src', '/assets/animations/loading.lottie');
-      player.setAttribute('autoplay', '');
-      player.setAttribute('loop', '');
-      player.style.width = '100%';
-      player.style.height = '100%';
+    if (
+      playerRef.current &&
+      !playerRef.current.querySelector("dotlottie-player")
+    ) {
+      const player = document.createElement("dotlottie-player");
+      player.setAttribute("src", "/assets/animations/loading.lottie");
+      player.setAttribute("autoplay", "");
+      player.setAttribute("loop", "");
+      player.style.width = "100%";
+      player.style.height = "100%";
       playerRef.current.appendChild(player);
     }
   }, []);
@@ -48,7 +51,7 @@ export function PageLoadingOverlay({ isLoading }: PageLoadingOverlayProps) {
         }`}
         style={{ backgroundColor: "#100E11" }}
       />
-      
+
       {/* Animation container (full opacity) */}
       <div
         className={`fixed inset-0 z-10000 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${

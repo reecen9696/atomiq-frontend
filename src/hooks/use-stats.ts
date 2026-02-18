@@ -28,15 +28,23 @@ export function useStats() {
       }
 
       try {
-        logger.api("📊 Stats: Fetching from API", `${env.apiUrl}/api/casino/stats`);
+        logger.api(
+          "📊 Stats: Fetching from API",
+          `${env.apiUrl}/api/casino/stats`,
+        );
 
         // Use the same simple fetch approach as test-ui
         const response = await fetch(`${env.apiUrl}/api/casino/stats`);
 
         if (!response.ok) {
-          logger.warn("📊 Stats: API returned error", { status: response.status });
+          logger.warn("📊 Stats: API returned error", {
+            status: response.status,
+          });
           if (!hasShownErrorToast.current) {
-            toast.error("Cannot connect to server", "Failed to load stats data");
+            toast.error(
+              "Cannot connect to server",
+              "Failed to load stats data",
+            );
             hasShownErrorToast.current = true;
           }
           return []; // Return empty array instead of throwing

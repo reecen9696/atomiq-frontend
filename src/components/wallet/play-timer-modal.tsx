@@ -210,15 +210,93 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
     return () => clearInterval(interval);
   }, [expiresAt]);
 
-  // DISABLED: Revoke allowance not implemented in Solana program yet
-  // Creating new session without revoking would lose funds from old allowance
-  // Users should extend their existing session instead
+  // Create a new play session with 0 SOL
+  // This allows users to have multiple sessions without locking up funds in old ones
   const handleCreateNewSession = useCallback(async () => {
-    toast.error(
-      "Feature not available",
-      "Please use 'Extend Session' instead. Creating a new session would lose your existing allowance funds until the Solana program implements fund reclaiming.",
-    );
-  }, []);
+    if (!publicKey || !sendTransaction) {
+      toast.error(
+        "Wallet not connected",
+        "Please connect your wallet to create a session",
+      );
+      return;
+    }
+
+    try {
+      setIsCreatingNew(true);
+      logger.transaction("allowance-create-new", { status: "starting" });
+
+      // Create an allowance for 0 SOL that expires in 10000 seconds
+      // This creates a new session PDA without depositing funds
+      const allowanceAmount = BigInt(0); // 0 SOL - no funds locked
+      const durationSeconds = BigInt(10000); // 10000 seconds (~2.8 hours)
+
+      const { signature, allowancePda, usedNonce } =
+        await solanaService.approveAllowanceSol({
+          user: publicKey,
+          amountLamports: allowanceAmount,
+          durationSeconds,
+          sendTransaction,
+          signTransaction: signTransaction ?? undefined,
+          connection: solanaService.getConnection(),
+        });
+
+      logger.transaction("allowance-create-new", {
+        status: "success",
+        allowancePda,
+        nonce: usedNonce,
+        amount: Number(allowanceAmount) / 1e9,
+        duration: Number(durationSeconds),
+        signature,
+      });
+
+      // Save the new session to cache
+      const playSessionData = {
+        allowancePda,
+        expiresAt: Math.floor(Date.now() / 1000) + Number(durationSeconds),
+        nonce: Number(usedNonce),
+      };
+      allowanceHook.savePlaySessionData(playSessionData);
+
+      toast.success(
+        "Session created",
+        "New play session created successfully!",
+      );
+
+      // Refresh the display
+      setExpiresAt(BigInt(playSessionData.expiresAt));
+      setAllowancePda(allowancePda);
+
+      // Fetch the actual allowance data from blockchain
+      const allowanceInfo = await allowanceService.getAllowanceInfo(
+        allowancePda,
+        allowanceService.getConnection(),
+      );
+
+      if (allowanceInfo.accountExists && allowanceInfo.allowanceData) {
+        setAllowanceData(allowanceInfo.allowanceData);
+        const totalAmount = Number(allowanceInfo.allowanceData.amountLamports);
+        const remainingAmount = Number(
+          allowanceInfo.allowanceData.remainingLamports,
+        );
+        const percentage =
+          totalAmount > 0 ? (remainingAmount / totalAmount) * 100 : 0;
+        setProgressPercentage(Math.max(0, Math.min(100, percentage)));
+      }
+    } catch (error) {
+      logger.error("❌ Failed to create new session", error);
+      const errorMsg =
+        error instanceof Error ? error.message : "Failed to create session";
+      toast.error("Session creation failed", errorMsg);
+    } finally {
+      setIsCreatingNew(false);
+    }
+  }, [
+    publicKey,
+    sendTransaction,
+    signTransaction,
+    allowanceHook,
+    allowanceService,
+  ]);
 
   const handleExtendTimer = useCallback(async () => {
     if (!publicKey || !sendTransaction) {
@@ -230,7 +308,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
     }
 
     try {
-      // Extend allowance for another 10000 seconds with 100 SOL
+      // Extend current allowance for another 10000 seconds with an additional 100 SOL
       const result = await allowanceHook.extend(10000, 100);
 
       if (result) {
@@ -353,7 +431,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
           <p className="text-white/60 text-sm mb-6">
             {allowanceData
               ? "Extend your current session or create a new one to reclaim funds from the old allowance."
-              : "Create a new play session to start gaming with a 100 SOL allowance."}
+              : "Create a new play session to start gaming."}
           </p>
 
           {/* Timer Display */}
@@ -498,9 +576,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
               disabled={allowanceHook.extending || !publicKey || isCreatingNew}
               className="w-full px-6 py-3 bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
             >
-              {allowanceHook.extending
-                ? "Extending..."
-                : "Extend Session (100 SOL)"}
+              {allowanceHook.extending ? "Extending..." : "Extend Session"}
             </button>
           )}
           <button
@@ -511,13 +587,13 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
               isCreatingNew ||
               allowanceHook.extending
             }
-            className="w-full px-6 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
+            className="w-full px-6 py-3 bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
           >
             {isCreatingNew
               ? "Creating New Session..."
               : allowanceData
-                ? "Create New Session (Reclaim + 100 SOL)"
-                : "Create Session (100 SOL)"}
+                ? "Create New Session"
+                : "Create Session"}
           </button>
         </div>
       </div>

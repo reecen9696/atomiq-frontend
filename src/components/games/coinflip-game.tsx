@@ -144,7 +144,10 @@ export function CoinflipGame() {
 
     // Check if user has enough balance
     if (!user?.vaultBalance || user.vaultBalance < amount) {
-      toast.error("Insufficient funds", "Please fund your wallet to continue playing.");
+      toast.error(
+        "Insufficient funds",
+        "Please fund your wallet to continue playing.",
+      );
       return;
     }
 
@@ -184,15 +187,15 @@ export function CoinflipGame() {
         if (cachedData) {
           toast.error(
             "Play session expired",
-            "Please click the timer button to extend your session."
+            "Please click the timer button to extend your session.",
           );
         } else {
           toast.error(
             "No active play session",
-            "Please approve an allowance first by clicking the wallet icon."
+            "Please approve an allowance first by clicking the wallet icon.",
           );
         }
-        bettingToast.dismissed(toastId);
+        toast.dismiss(toastId);
         removePendingBet(gameId);
         return;
       }

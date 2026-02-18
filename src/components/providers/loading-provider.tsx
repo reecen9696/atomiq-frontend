@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 import { useRecentWins } from "@/hooks/use-recent-wins";
 import { useRecentBlocks } from "@/hooks/use-recent-blocks";
 import { useStats } from "@/hooks/use-stats";
@@ -19,25 +25,34 @@ export function usePageLoading() {
 }
 
 export function LoadingProvider({ children }: { children: ReactNode }) {
-  const { isConnected } = useAuthStore();
+  const { isOnboarding, hasCompletedInitialLoad } = useAuthStore();
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  
-  const { isLoading: winsLoading, isFetching: winsFetching } = useRecentWins();
-  const { isLoading: blocksLoading, isFetching: blocksFetching } = useRecentBlocks();
-  const { isLoading: statsLoading, isFetching: statsFetching } = useStats();
+
+  const { isLoading: winsLoading } = useRecentWins();
+  const { isLoading: blocksLoading } = useRecentBlocks();
+  const { isLoading: statsLoading } = useStats();
 
   useEffect(() => {
-    // Initial loading is done when all data has been fetched at least once
+    // Wait for:
+    // 1. All data to load (wins, blocks, stats)
+    // 2. Initial wallet check and onboarding to complete
     const allDataLoaded = !winsLoading && !blocksLoading && !statsLoading;
-    
-    if (allDataLoaded) {
+    const walletSetupComplete = hasCompletedInitialLoad && !isOnboarding;
+
+    if (allDataLoaded && walletSetupComplete) {
       // Add a slight delay to ensure smooth transition
       const timer = setTimeout(() => {
         setIsInitialLoading(false);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [winsLoading, blocksLoading, statsLoading]);
+  }, [
+    winsLoading,
+    blocksLoading,
+    statsLoading,
+    hasCompletedInitialLoad,
+    isOnboarding,
+  ]);
 
   return (
     <LoadingContext.Provider value={{ isInitialLoading }}>

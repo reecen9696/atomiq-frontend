@@ -33,14 +33,19 @@ export function useRecentBlocks(limit?: number) {
 
       try {
         const response = await api.blocks.getRecent(actualLimit);
-        logger.debug("📦 Blocks query response", { count: response.data?.length });
+        logger.debug("📦 Blocks query response", {
+          count: response.data?.length,
+        });
         hasShownErrorToast.current = false; // Reset on success
         // The API service already transforms data, so we use response.data directly
         return response.data || [];
       } catch (error) {
         logger.warn("Blocks API failed, returning empty array", { error });
         if (!hasShownErrorToast.current) {
-          toast.error("Cannot connect to server", "Failed to load recent blocks");
+          toast.error(
+            "Cannot connect to server",
+            "Failed to load recent blocks",
+          );
           hasShownErrorToast.current = true;
         }
         return []; // Return empty array instead of throwing to prevent undefined
@@ -61,7 +66,9 @@ export function useRecentBlocks(limit?: number) {
   // Direct WebSocket connection like test-ui for instant updates
   useEffect(() => {
     if (config.features.enableMockData) {
-      logger.debug("📦 Mock data enabled, skipping WebSocket connection for blocks");
+      logger.debug(
+        "📦 Mock data enabled, skipping WebSocket connection for blocks",
+      );
       return;
     }
 

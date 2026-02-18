@@ -688,7 +688,10 @@ const Plinko = () => {
 
       // Check if user has enough balance
       if (!user?.vaultBalance || user.vaultBalance < betAmount) {
-        toast.error("Insufficient funds", "Please fund your wallet to continue playing.");
+        toast.error(
+          "Insufficient funds",
+          "Please fund your wallet to continue playing.",
+        );
         setPlayLoading(false);
         return;
       }
@@ -698,7 +701,7 @@ const Plinko = () => {
       if (!playSession || !playSession.nonce) {
         toast.error(
           "No active play session",
-          "Please approve an allowance first by clicking the wallet icon."
+          "Please approve an allowance first by clicking the wallet icon.",
         );
         setPlayLoading(false);
         return;

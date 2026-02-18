@@ -41,7 +41,6 @@ export const GameCard = React.memo<GameCardProps>(
           quality={100}
           sizes="(max-width: 768px) 100vw, 160px"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       </div>
     );
   },

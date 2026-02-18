@@ -20,6 +20,7 @@ function WalletModalComponent() {
     setConnecting,
     isConnecting,
     updateVaultInfo,
+    isOnboarding,
   } = useAuthStore();
   const {
     publicKey,
@@ -90,6 +91,13 @@ function WalletModalComponent() {
     }
   }, [connected, publicKey, refreshVaultInfo]);
 
+  // Close modal when automatic onboarding starts
+  useEffect(() => {
+    if (isOnboarding && isWalletModalOpen) {
+      closeWalletModal();
+    }
+  }, [isOnboarding, isWalletModalOpen, closeWalletModal]);
+
   // Handle wallet connection state changes
   useEffect(() => {
     const wasConnected = prevConnectedRef.current;
@@ -104,36 +112,11 @@ function WalletModalComponent() {
         hasShownToastRef.current = true;
       }
 
-      // Check vault and handle onboarding flow
-      const timeoutId = setTimeout(async () => {
-        try {
-          const vaultInfo = await solanaService.getUserVaultInfo({
-            user: publicKey,
-            connection: solanaService.getConnection(),
-          });
-
-          if (vaultInfo.exists) {
-            // User already has vault - go directly to session creation
-            setVaultCreated(true);
-            setVaultAddress(vaultInfo.address);
-            const vaultBalance =
-              Number(vaultInfo.state?.solBalanceLamports || 0n) / 1e9;
-            updateVaultInfo(vaultInfo.address, vaultBalance);
-            // Allow user to create new session
-            setCurrentPage("createSession");
-          } else {
-            // Start onboarding flow
-            setVaultCreated(false);
-            setVaultAddress("");
-            setCurrentPage("smartVault");
-          }
-        } catch (error) {
-          logger.error("Failed to check vault", error);
-          setCurrentPage("smartVault");
-        }
-      }, 100);
-
-      return () => clearTimeout(timeoutId);
+      // Automatic onboarding is now handled by WalletSync component
+      // Just close the modal and let the loading overlay show
+      if (isWalletModalOpen) {
+        closeWalletModal();
+      }
     } else if (!isNowConnected && wasConnected) {
       // Disconnection
       setCurrentPage("connect");

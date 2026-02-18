@@ -19,7 +19,11 @@ export function StatsCarousel() {
       <div className="w-full">
         <div className="flex gap-4 overflow-x-auto">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-40 w-85 rounded-xlg shrink-0" isStatic />
+            <Skeleton
+              key={i}
+              className="h-40 w-85 rounded-xlg shrink-0"
+              isStatic
+            />
           ))}
         </div>
       </div>

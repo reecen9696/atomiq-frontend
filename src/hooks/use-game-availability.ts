@@ -10,7 +10,9 @@ interface PlaySessionData {
   nonce: number;
 }
 
-function getCachedPlaySession(publicKey: string | null): PlaySessionData | null {
+function getCachedPlaySession(
+  publicKey: string | null,
+): PlaySessionData | null {
   if (!publicKey) return null;
 
   try {
@@ -19,7 +21,7 @@ function getCachedPlaySession(publicKey: string | null): PlaySessionData | null 
     if (!stored) return null;
 
     const session = JSON.parse(stored) as PlaySessionData;
-    
+
     // Check if session has expired
     const now = Math.floor(Date.now() / 1000);
     if (session.expiresAt <= now) {
@@ -50,7 +52,8 @@ export function useGameAvailability() {
     if (!playSession) {
       return {
         isAvailable: false,
-        reason: "No active play sessions found. Approve allowance in the settings",
+        reason:
+          "No active play sessions found. Approve allowance in the settings",
       };
     }
 
