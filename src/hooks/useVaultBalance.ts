@@ -8,7 +8,7 @@ import { logger } from "@/lib/logger";
 
 // Reconciliation configuration
 const RECONCILIATION_INTERVAL = 30000; // 30 seconds
-const BALANCE_DRIFT_THRESHOLD = 0.001; // 0.001 SOL (~$0.10 at current prices)
+const BALANCE_DRIFT_THRESHOLD = 0.001; // 0.001 SOL threshold (absolute amount, not USD-pegged)
 
 export function useVaultBalance() {
   const { publicKey } = useWallet();
@@ -138,9 +138,49 @@ export function useVaultBalance() {
       return;
     }
 
-    // Set up reconciliation interval
+    // Set up reconciliation interval - call reconcileBalance directly in the interval
     reconciliationIntervalRef.current = setInterval(() => {
-      reconcileBalance();
+      // Skip if already loading or recently reconciled
+      if (loading) return;
+
+      const now = Date.now();
+      if (now - lastReconciledRef.current < RECONCILIATION_INTERVAL) return;
+
+      setIsReconciling(true);
+      lastReconciledRef.current = now;
+
+      // Perform reconciliation
+      solanaService
+        .getUserVaultInfo({
+          user: publicKey,
+          connection: solanaService.getConnection(),
+        })
+        .then((vaultInfo) => {
+          if (vaultInfo.exists && vaultInfo.state) {
+            const onChainBalance =
+              Number(vaultInfo.state.solBalanceLamports || 0n) / 1e9;
+            const currentOptimisticBalance = user?.vaultBalance || 0;
+
+            const drift = Math.abs(onChainBalance - currentOptimisticBalance);
+            if (drift > BALANCE_DRIFT_THRESHOLD) {
+              logger.info(
+                `Balance drift detected: ${drift.toFixed(4)} SOL. Reconciling...`,
+              );
+              logger.info(
+                `On-chain: ${onChainBalance.toFixed(4)} SOL, Optimistic: ${currentOptimisticBalance.toFixed(4)} SOL`,
+              );
+
+              setVaultBalance(onChainBalance);
+              updateVaultInfo(vaultInfo.address, onChainBalance);
+            }
+          }
+        })
+        .catch((err) => {
+          logger.error("Failed to reconcile balance:", err);
+        })
+        .finally(() => {
+          setIsReconciling(false);
+        });
     }, RECONCILIATION_INTERVAL);
 
     // Cleanup on unmount
@@ -150,7 +190,8 @@ export function useVaultBalance() {
         reconciliationIntervalRef.current = null;
       }
     };
-  }, [publicKey, hasVault, reconcileBalance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicKey, hasVault]); // Only recreate when publicKey or hasVault changes
 
   // Method to update vault balance - updates both local state and auth store
   const updateLocalVaultBalance = useCallback(

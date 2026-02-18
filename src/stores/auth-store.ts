@@ -81,9 +81,11 @@ export const useAuthStore = create<AuthState>()(
         set((state) => {
           if (!state.user) return state;
           const currentBalance = state.user.vaultBalance || 0;
+          // For wins: add payout minus bet amount (net profit)
+          // For losses: subtract bet amount (payout should be 0 but we ignore it)
           const newBalance = won
-            ? currentBalance + (payout - betAmount) // Net profit
-            : currentBalance - betAmount; // Loss
+            ? currentBalance + payout - betAmount
+            : currentBalance - betAmount;
           return {
             user: {
               ...state.user,

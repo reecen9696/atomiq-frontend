@@ -119,7 +119,10 @@ export function TopNavbar() {
                           ? "..."
                           : formatSOL(vaultBalance || 0, 9)}
                         {pendingBets.size > 0 && (
-                          <span className="text-[10px] text-yellow-400 ml-1">
+                          <span
+                            className="text-[10px] text-yellow-400 ml-1"
+                            aria-label={`${pendingBets.size} pending bet${pendingBets.size > 1 ? "s" : ""}`}
+                          >
                             (pending)
                           </span>
                         )}
