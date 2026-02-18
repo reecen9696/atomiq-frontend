@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import {
@@ -45,6 +45,7 @@ export function CoinflipGame() {
     null,
   );
   const [showResult, setShowResult] = useState(false);
+  const processedGameIdRef = useRef<string | null>(null);
 
   // Clear error toast after 5 seconds
   useEffect(() => {
@@ -59,6 +60,10 @@ export function CoinflipGame() {
     (result: CoinflipResult) => {
       // Type guard: only process complete results
       if (result.status !== "complete" || !result.result) return;
+
+      // Dedup guard: skip if already processed this game result
+      if (result.game_id && processedGameIdRef.current === result.game_id) return;
+      if (result.game_id) processedGameIdRef.current = result.game_id;
 
       const won = result.result.outcome === "win";
       const payout = result.result.payment?.payout_amount || 0;

@@ -736,13 +736,13 @@ const Plinko = () => {
       if (response.data && response.data.status === "complete") {
         setBetResponse(response.data);
 
-        // Update vault balance using atomic method
+        // Update vault balance using atomic method with server-authoritative values
         const won = response.data.result.outcome === "win";
-        const winAmount = betAmount * response.data.result.multiplier;
-        const payout = won ? winAmount : 0;
+        const serverBetAmount = response.data.result.payment?.bet_amount || betAmount;
+        const payout = response.data.result.payment?.payout_amount || (won ? betAmount * response.data.result.multiplier : 0);
 
         const { processBetOutcome } = useAuthStore.getState();
-        processBetOutcome(betAmount, won, payout);
+        processBetOutcome(serverBetAmount, won, payout);
 
         // Drop ball - allow immediate next bet
         dropBall(response.data.result.bucket);

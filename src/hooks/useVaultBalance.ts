@@ -15,21 +15,20 @@ export function useVaultBalance() {
   const { updateVaultInfo, user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Use local state as source of truth, not auth store
-  const [vaultBalance, setVaultBalance] = useState<number | null>(null);
-  const [vaultAddress, setVaultAddress] = useState<string>("");
   const [hasVault, setHasVault] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
   const lastReconciledRef = useRef<number>(0);
   const reconciliationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const reconciliationFnRef = useRef<() => Promise<void>>();
+  const reconciliationFnRef = useRef<() => Promise<void>>(undefined);
   const reconcilingInProgressRef = useRef<boolean>(false);
+
+  // Use auth store as single source of truth for balance display
+  // This way processBetOutcome, revertBetAmount, deposits all update the same value
+  const vaultBalance = user?.vaultBalance ?? null;
+  const vaultAddress = user?.vaultAddress ?? "";
 
   const fetchVaultBalance = useCallback(async () => {
     if (!publicKey) {
-      // Clear vault info when no wallet connected
-      setVaultBalance(null);
-      setVaultAddress("");
       setHasVault(false);
       updateVaultInfo("", 0);
       return;
@@ -46,16 +45,10 @@ export function useVaultBalance() {
 
       if (vaultInfo.exists && vaultInfo.state) {
         const balance = Number(vaultInfo.state.solBalanceLamports || 0n) / 1e9;
-        // Update local state (source of truth for display)
-        setVaultBalance(balance);
-        setVaultAddress(vaultInfo.address);
         setHasVault(true);
-        // Also update auth store for cross-component sync
+        // Single source of truth: auth store
         updateVaultInfo(vaultInfo.address, balance);
       } else {
-        // No vault found
-        setVaultBalance(0);
-        setVaultAddress("");
         setHasVault(false);
         updateVaultInfo("", 0);
       }
@@ -64,9 +57,6 @@ export function useVaultBalance() {
       const errorMessage =
         (err as Error).message || "Failed to fetch vault balance";
       setError(errorMessage);
-      // Default to 0 on error
-      setVaultBalance(0);
-      setVaultAddress("");
       setHasVault(false);
       updateVaultInfo("", 0);
     } finally {
@@ -119,7 +109,6 @@ export function useVaultBalance() {
           );
 
           // Update to on-chain value
-          setVaultBalance(onChainBalance);
           updateVaultInfo(vaultInfo.address, onChainBalance);
         }
       }
@@ -169,10 +158,9 @@ export function useVaultBalance() {
     };
   }, [publicKey, hasVault]);
 
-  // Method to update vault balance - updates both local state and auth store
+  // Method to update vault balance optimistically
   const updateLocalVaultBalance = useCallback(
     (newBalance: number) => {
-      setVaultBalance(newBalance);
       updateVaultInfo(vaultAddress, newBalance);
     },
     [updateVaultInfo, vaultAddress],
