@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import {
@@ -9,17 +9,14 @@ import {
 } from "@/components/providers/sdk-provider";
 import { useBetting, useAllowanceForCasino } from "@/lib/sdk/hooks";
 import type { CoinflipResult } from "@/lib/sdk";
-import { useVaultBalance } from "@/hooks/useVaultBalance";
-import { useBalance } from "@/hooks/useBalance";
-import { bettingToast, toast, walletToast } from "@/lib/toast";
+import { bettingToast, toast } from "@/lib/toast";
 import { useBetTrackingStore } from "@/stores/bet-tracking-store";
 import { useSettlementErrors } from "@/hooks/useSettlementErrors";
 
 export function CoinflipGame() {
   const wallet = useWallet();
   const { publicKey } = wallet;
-  const { isConnected, openWalletModal, user, updateVaultInfo } =
-    useAuthStore();
+  const { isConnected, openWalletModal, user } = useAuthStore();
   const bettingService = useAtomikBetting();
   const allowanceService = useAtomikAllowance();
   const allowance = useAllowanceForCasino(
@@ -48,6 +45,7 @@ export function CoinflipGame() {
     null,
   );
   const [showResult, setShowResult] = useState(false);
+  const processedGameIdRef = useRef<string | null>(null);
 
   // Clear error toast after 5 seconds
   useEffect(() => {
@@ -63,29 +61,23 @@ export function CoinflipGame() {
       // Type guard: only process complete results
       if (result.status !== "complete" || !result.result) return;
 
-      // ✅ Read fresh user state from store to avoid stale closure
-      const currentUser = useAuthStore.getState().user;
-      if (!currentUser) return;
+      // Dedup guard: skip if already processed this game result
+      if (result.game_id && processedGameIdRef.current === result.game_id) return;
+      if (result.game_id) processedGameIdRef.current = result.game_id;
 
       const won = result.result.outcome === "win";
       const payout = result.result.payment?.payout_amount || 0;
       const betAmount = result.result.payment?.bet_amount || 0;
       const outcome = result.result.outcome;
 
-      // Get current balance directly from fresh store state
-      const currentVaultBalance = currentUser.vaultBalance || 0;
-      const vaultAddress = currentUser.vaultAddress || "";
+      // ✅ Use atomic balance update method
+      const { processBetOutcome } = useAuthStore.getState();
+      processBetOutcome(betAmount, won, payout);
 
+      // Show toast notification
       if (won) {
-        // Win: add net profit (payout - original bet)
-        const netProfit = payout - betAmount;
-        const newBalance = currentVaultBalance + netProfit;
-        updateVaultInfo(vaultAddress, newBalance);
         bettingToast.betWon(payout, outcome);
       } else {
-        // Loss: subtract bet amount
-        const newBalance = currentVaultBalance - betAmount;
-        updateVaultInfo(vaultAddress, newBalance);
         bettingToast.betLost(betAmount, outcome);
       }
 
@@ -103,7 +95,7 @@ export function CoinflipGame() {
         }
       }
     },
-    [updateVaultInfo, removePendingBet],
+    [removePendingBet],
   );
 
   // Handle game result - Process EVERY result for balance updates

@@ -19,7 +19,6 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
-import { useBalance } from "@/hooks/useBalance";
 import { toast } from "@/lib/toast";
 // Configuration - using blockchain API
 const Config = {
@@ -300,8 +299,7 @@ interface RippleEffect {
 const Plinko = () => {
   const classes = useStyles();
   const { publicKey, signMessage } = useWallet();
-  const { isConnected, user, updateVaultInfo, openWalletModal } =
-    useAuthStore();
+  const { isConnected, user, openWalletModal } = useAuthStore();
 
   // Initialize allowance service for wallet signatures
   const allowanceService = useAtomikAllowance();
@@ -738,16 +736,13 @@ const Plinko = () => {
       if (response.data && response.data.status === "complete") {
         setBetResponse(response.data);
 
-        // Update vault balance
-        if (updateVaultInfo && user?.vaultAddress) {
-          const currentBalance = user.vaultBalance || 0;
-          const winAmount = betAmount * response.data.result.multiplier;
-          const newBalance =
-            response.data.result.outcome === "win"
-              ? currentBalance + (winAmount - betAmount)
-              : currentBalance - betAmount;
-          updateVaultInfo(user.vaultAddress, newBalance);
-        }
+        // Update vault balance using atomic method with server-authoritative values
+        const won = response.data.result.outcome === "win";
+        const serverBetAmount = response.data.result.payment?.bet_amount || betAmount;
+        const payout = response.data.result.payment?.payout_amount || (won ? betAmount * response.data.result.multiplier : 0);
+
+        const { processBetOutcome } = useAuthStore.getState();
+        processBetOutcome(serverBetAmount, won, payout);
 
         // Drop ball - allow immediate next bet
         dropBall(response.data.result.bucket);
