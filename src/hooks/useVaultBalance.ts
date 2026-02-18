@@ -5,7 +5,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { solanaService } from "@/services/solana";
 import { logger } from "@/lib/logger";
-import { getInFlightTotal } from "@/hooks/useBetGuard";
+import { getInFlightTotal, getUnsettledPnL } from "@/hooks/useBetGuard";
 
 // Reconciliation configuration
 const RECONCILIATION_INTERVAL = 30000; // 30 seconds
@@ -114,26 +114,34 @@ export function useVaultBalance() {
           Number(vaultInfo.state.solBalanceLamports || 0n) / 1e9;
         const currentOptimisticBalance = user?.vaultBalance || 0;
 
-        // Account for in-flight bets that have been optimistically deducted
-        // but not yet settled on-chain. Without this, reconciliation would
-        // "undo" the optimistic deductions and make the balance jump up.
+        // The optimistic balance reflects:
+        //   optimistic = onChain - inFlight + unsettledPnL
+        // where inFlight = bets deducted but not yet resolved,
+        // and unsettledPnL = net P&L from resolved bets not yet on-chain.
+        //
+        // To check for genuine drift (deposits, withdrawals, on-chain
+        // settlement applying), we compute what on-chain SHOULD be:
+        //   expectedOnChain = optimistic + inFlight - unsettledPnL
+        // If actual on-chain differs, it's a real event (deposit, settlement).
         const inFlightAmount = getInFlightTotal();
-        const expectedOnChain = currentOptimisticBalance + inFlightAmount;
+        const unsettledPnL = getUnsettledPnL();
+        const expectedOnChain =
+          currentOptimisticBalance + inFlightAmount - unsettledPnL;
 
-        // Only reconcile if the drift exceeds threshold AFTER accounting
-        // for in-flight bets. This prevents the balance from jumping on
-        // page refresh or periodic reconciliation.
         const adjustedDrift = Math.abs(onChainBalance - expectedOnChain);
         if (adjustedDrift > BALANCE_DRIFT_THRESHOLD) {
-          // The on-chain balance genuinely differs from what we expect.
-          // Subtract in-flight bets from on-chain to get the correct
-          // optimistic display value.
-          const reconciledBalance = Math.max(0, onChainBalance - inFlightAmount);
+          // Genuine drift detected (deposit, withdrawal, or settlement).
+          // Recompute optimistic = onChain - inFlight + unsettledPnL
+          const reconciledBalance = Math.max(
+            0,
+            onChainBalance - inFlightAmount + unsettledPnL,
+          );
           logger.info(
             `Balance reconciliation: on-chain=${onChainBalance.toFixed(4)}, ` +
-            `optimistic=${currentOptimisticBalance.toFixed(4)}, ` +
-            `in-flight=${inFlightAmount.toFixed(4)}, ` +
-            `reconciled=${reconciledBalance.toFixed(4)} SOL`,
+              `optimistic=${currentOptimisticBalance.toFixed(4)}, ` +
+              `in-flight=${inFlightAmount.toFixed(4)}, ` +
+              `unsettled-pnl=${unsettledPnL.toFixed(4)}, ` +
+              `reconciled=${reconciledBalance.toFixed(4)} SOL`,
           );
           updateVaultInfo(vaultInfo.address, reconciledBalance);
         }

@@ -15,7 +15,8 @@ import { toast } from "@/lib/toast";
  * 1. Immediately deducts the bet from the optimistic balance BEFORE the API call
  * 2. Returns a `resolve` function to finalize the outcome (win/loss)
  * 3. Returns a `revert` function to restore the balance on API failure
- * 4. Tracks in-flight bets so balance checks account for them
+ * 4. Tracks in-flight bets AND unsettled P&L so reconciliation doesn't
+ *    overwrite game outcomes before on-chain settlement catches up
  *
  * Usage in any game:
  * ```tsx
@@ -41,7 +42,7 @@ import { toast } from "@/lib/toast";
 export interface BetGuardHandle {
   /** The bet amount in SOL that was reserved */
   betAmount: number;
-  /** Finalize the bet outcome — adds payout if won, does nothing for loss (bet already deducted) */
+  /** Finalize the bet outcome — adds payout back (even partial payouts on "losses" like plinko 0.5x) */
   resolve: (won: boolean, payout: number) => void;
   /** Revert the deduction on API/network failure — restores betAmount to balance */
   revert: () => void;
@@ -53,6 +54,37 @@ export interface BetGuardHandle {
 let _inFlightTotal = 0;
 let _inFlightCount = 0;
 
+// Unsettled P&L: net profit/loss from resolved bets that haven't settled on-chain yet.
+// Positive = net winnings, Negative = net losses.
+// This prevents reconciliation from overwriting game outcomes before settlement.
+let _unsettledPnL = 0;
+
+// Track individual P&L entries with timestamps so they can decay
+interface PnLEntry {
+  amount: number; // payout - betAmount (can be negative)
+  timestamp: number;
+}
+const _pnlEntries: PnLEntry[] = [];
+
+// How long before we assume a settlement has been applied on-chain (2 minutes)
+const PNL_DECAY_MS = 120_000;
+
+/** Decay old P&L entries that have likely settled on-chain */
+function decayPnL() {
+  const now = Date.now();
+  let i = 0;
+  while (i < _pnlEntries.length) {
+    if (now - _pnlEntries[i].timestamp > PNL_DECAY_MS) {
+      _unsettledPnL -= _pnlEntries[i].amount;
+      _pnlEntries.splice(i, 1);
+    } else {
+      i++;
+    }
+  }
+  // Clamp rounding errors
+  if (_pnlEntries.length === 0) _unsettledPnL = 0;
+}
+
 /** Get the total SOL currently reserved by in-flight bets */
 export function getInFlightTotal(): number {
   return _inFlightTotal;
@@ -61,6 +93,16 @@ export function getInFlightTotal(): number {
 /** Get the number of currently in-flight bets */
 export function getInFlightCount(): number {
   return _inFlightCount;
+}
+
+/**
+ * Get the net unsettled P&L from resolved bets.
+ * Positive = net winnings not yet on-chain. Negative = net losses not yet on-chain.
+ * Automatically decays entries older than PNL_DECAY_MS.
+ */
+export function getUnsettledPnL(): number {
+  decayPnL();
+  return _unsettledPnL;
 }
 
 export function useBetGuard() {
@@ -80,12 +122,11 @@ export function useBetGuard() {
       const state = useAuthStore.getState();
       const currentBalance = state.user?.vaultBalance ?? 0;
 
-      // Check balance MINUS what's already in-flight
-      const effectiveBalance = currentBalance; // balance already includes prior deductions
-      if (!skipBalanceCheck && effectiveBalance < betAmount) {
+      // Check balance — already reflects prior deductions from earlier guardBet calls
+      if (!skipBalanceCheck && currentBalance < betAmount) {
         toast.error(
           "Insufficient funds",
-          `Balance: ${effectiveBalance.toFixed(4)} SOL, Bet: ${betAmount.toFixed(4)} SOL`,
+          `Balance: ${currentBalance.toFixed(4)} SOL, Bet: ${betAmount.toFixed(4)} SOL`,
         );
         return null;
       }
@@ -111,12 +152,21 @@ export function useBetGuard() {
           _inFlightCount = Math.max(0, _inFlightCount - 1);
           activeGuardsRef.current.delete(handle);
 
-          if (won && payout > 0) {
-            // Add the payout back (the bet was already deducted in guardBet)
+          // Track the net P&L for reconciliation purposes.
+          // This tells reconciliation "the optimistic balance includes this
+          // game outcome, but on-chain hasn't settled yet — don't overwrite it."
+          const netPnL = payout - betAmount;
+          _unsettledPnL += netPnL;
+          _pnlEntries.push({ amount: netPnL, timestamp: Date.now() });
+
+          if (payout > 0) {
+            // Add the payout back (the bet was already deducted in guardBet).
+            // This handles BOTH wins (payout > betAmount) AND partial-payout
+            // "losses" like plinko 0.5x (payout < betAmount but > 0).
             const { revertBetAmount } = useAuthStore.getState();
             revertBetAmount(payout);
           }
-          // If lost: bet was already deducted, nothing more to do.
+          // If payout is 0 (true loss): bet was already deducted, nothing to add.
         },
 
         revert: () => {
@@ -126,7 +176,7 @@ export function useBetGuard() {
           _inFlightCount = Math.max(0, _inFlightCount - 1);
           activeGuardsRef.current.delete(handle);
 
-          // Restore the deducted amount
+          // Restore the deducted amount (API failure — bet never happened)
           const { revertBetAmount } = useAuthStore.getState();
           revertBetAmount(betAmount);
         },
@@ -138,5 +188,5 @@ export function useBetGuard() {
     [],
   );
 
-  return { guardBet, getInFlightTotal, getInFlightCount };
+  return { guardBet, getInFlightTotal, getInFlightCount, getUnsettledPnL };
 }
