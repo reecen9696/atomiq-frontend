@@ -9,9 +9,7 @@ import {
 } from "@/components/providers/sdk-provider";
 import { useBetting, useAllowanceForCasino } from "@/lib/sdk/hooks";
 import type { CoinflipResult } from "@/lib/sdk";
-import { useVaultBalance } from "@/hooks/useVaultBalance";
-import { useBalance } from "@/hooks/useBalance";
-import { bettingToast, toast, walletToast } from "@/lib/toast";
+import { bettingToast, toast } from "@/lib/toast";
 import { useBetTrackingStore } from "@/stores/bet-tracking-store";
 import { useSettlementErrors } from "@/hooks/useSettlementErrors";
 

@@ -19,7 +19,6 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
-import { useBalance } from "@/hooks/useBalance";
 import { toast } from "@/lib/toast";
 // Configuration - using blockchain API
 const Config = {
