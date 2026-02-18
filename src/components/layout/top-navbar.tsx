@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
+import { useBetTrackingStore } from "@/stores/bet-tracking-store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useBalance } from "@/hooks/useBalance";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
@@ -26,7 +27,14 @@ export function TopNavbar() {
   } = useAuthStore();
   const { disconnect: walletDisconnect } = useWallet();
   const { balance, loading: balanceLoading } = useBalance();
-  const { vaultBalance, hasVault, loading: vaultLoading } = useVaultBalance();
+  const {
+    vaultBalance,
+    hasVault,
+    loading: vaultLoading,
+    isReconciling,
+    refresh: refreshVaultBalance,
+  } = useVaultBalance();
+  const { pendingBets } = useBetTrackingStore();
 
   // Reset dropdown when connection state changes
   useEffect(() => {
@@ -95,26 +103,55 @@ export function TopNavbar() {
           <>
             {/* Currency Selector - Only when connected AND vault exists */}
             {hasVault && (
-              <div className="flex items-center justify-between w-[172px] h-[48px] px-3 border border-[#1E2938] hover:border-[#5C41E1] hover:bg-white/10 rounded-sm transition-all duration-200 cursor-pointer">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between w-[172px] h-[48px] px-3 border border-[#1E2938] hover:border-[#5C41E1] hover:bg-white/10 rounded-sm transition-all duration-200 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <Image
+                      src="/icons/sol.svg"
+                      alt="SOL"
+                      width={14}
+                      height={14}
+                      style={{ width: "auto", height: "auto" }}
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-[14px] font-normal text-white font-['DM_Sans']">
+                        {vaultLoading
+                          ? "..."
+                          : formatSOL(vaultBalance || 0, 9)}
+                        {pendingBets.size > 0 && (
+                          <span className="text-[10px] text-yellow-400 ml-1">
+                            (pending)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
                   <Image
-                    src="/icons/sol.svg"
-                    alt="SOL"
-                    width={14}
-                    height={14}
+                    src="/icons/downArrow.svg"
+                    alt="Dropdown"
+                    width={16}
+                    height={16}
                     style={{ width: "auto", height: "auto" }}
                   />
-                  <span className="text-[14px] font-normal text-white font-['DM_Sans']">
-                    {vaultLoading ? "..." : formatSOL(vaultBalance || 0, 9)}
-                  </span>
                 </div>
-                <Image
-                  src="/icons/downArrow.svg"
-                  alt="Dropdown"
-                  width={16}
-                  height={16}
-                  style={{ width: "auto", height: "auto" }}
-                />
+                {/* Sync indicator and refresh button */}
+                <button
+                  onClick={refreshVaultBalance}
+                  disabled={vaultLoading}
+                  className="flex items-center justify-center w-[40px] h-[48px] border border-[#1E2938] hover:border-[#5C41E1] hover:bg-white/10 rounded-sm transition-all duration-200 disabled:opacity-50"
+                  title="Refresh balance"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    height="18px"
+                    viewBox="0 -960 960 960"
+                    width="18px"
+                    fill="#FFFFFF"
+                    className={isReconciling ? "animate-spin" : ""}
+                  >
+                    <path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z" />
+                  </svg>
+                </button>
               </div>
             )}
 
