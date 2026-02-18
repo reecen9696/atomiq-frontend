@@ -309,7 +309,7 @@ export class WebSocketConnection {
     this.stopHeartbeat();
     this.lastHeartbeat = Date.now();
     
-    // Check heartbeat every 30 seconds
+    // Check heartbeat every 30 seconds (reconnect if no messages for 60s)
     this.heartbeatInterval = setInterval(() => {
       const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeat;
       

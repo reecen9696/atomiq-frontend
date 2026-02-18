@@ -30,6 +30,7 @@ export function WebSocketStatus() {
 
     const config = createAtomikConfig();
     const manager = createWebSocketManager(config);
+    let cleanupFn: (() => void) | undefined;
 
     const initConnection = async () => {
       try {
@@ -42,7 +43,7 @@ export function WebSocketStatus() {
           setConnectionState(state);
         });
 
-        return () => {
+        cleanupFn = () => {
           unsubscribe();
           manager.disconnectAll();
         };
@@ -52,10 +53,10 @@ export function WebSocketStatus() {
       }
     };
 
-    const cleanup = initConnection();
+    initConnection();
 
     return () => {
-      cleanup?.then((cleanupFn) => cleanupFn?.());
+      cleanupFn?.();
     };
   }, [publicKey]);
 
