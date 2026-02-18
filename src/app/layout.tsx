@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import { WalletSync } from "@/components/providers/wallet-sync";
 import { LoadingProvider } from "@/components/providers/loading-provider";
 import { LayoutContent } from "@/components/layout/layout-content";
+import { WebSocketStatus } from "@/components/websocket-status";
 import Script from "next/script";
 
 const dmSans = DM_Sans({
@@ -50,6 +51,7 @@ export default function RootLayout({
           <LoadingProvider>
             <LayoutContent>{children}</LayoutContent>
           </LoadingProvider>
+          <WebSocketStatus />
         </Providers>
       </body>
     </html>
