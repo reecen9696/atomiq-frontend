@@ -60,6 +60,9 @@ export type AtomikWebSocketMessage =
 type MessageHandler<T = unknown> = (data: T) => void;
 type ErrorHandler = (error: Event) => void;
 type ConnectionHandler = () => void;
+type ConnectionStateHandler = (state: ConnectionState) => void;
+
+export type ConnectionState = "connected" | "connecting" | "disconnected" | "reconnecting";
 
 /**
  * WebSocket connection wrapper with automatic reconnection
@@ -72,13 +75,29 @@ export class WebSocketConnection {
   private errorHandlers: ErrorHandler[] = [];
   private connectHandlers: ConnectionHandler[] = [];
   private disconnectHandlers: ConnectionHandler[] = [];
+  private connectionStateHandlers: ConnectionStateHandler[] = [];
   private reconnectAttempt = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private isIntentionallyClosed = false;
+  private connectionState: ConnectionState = "disconnected";
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private lastHeartbeat: number = 0;
+  private readonly MAX_RECONNECT_DELAY = 30000; // 30 seconds cap
 
   constructor(url: string, config: WebSocketConfig) {
     this.url = url;
     this.config = config;
+  }
+
+  /**
+   * Update connection state and notify handlers
+   */
+  private setConnectionState(state: ConnectionState): void {
+    if (this.connectionState !== state) {
+      this.connectionState = state;
+      logger.websocket("Connection state changed", { state });
+      this.connectionStateHandlers.forEach((handler) => handler(state));
+    }
   }
 
   /**
@@ -87,11 +106,15 @@ export class WebSocketConnection {
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        this.setConnectionState("connecting");
         this.ws = new WebSocket(this.url);
         this.isIntentionallyClosed = false;
 
         this.ws.onopen = () => {
+          logger.websocket("WebSocket connected", { url: this.url });
           this.reconnectAttempt = 0;
+          this.setConnectionState("connected");
+          this.startHeartbeat();
           this.connectHandlers.forEach((handler) => handler());
           resolve();
         };
@@ -99,6 +122,9 @@ export class WebSocketConnection {
         this.ws.onmessage = (event) => {
           try {
             const message = JSON.parse(event.data);
+
+            // Update heartbeat timestamp on any message
+            this.lastHeartbeat = Date.now();
 
             // Filter out heartbeat messages from console logs
             if (message.type !== "heartbeat") {
@@ -114,18 +140,34 @@ export class WebSocketConnection {
         };
 
         this.ws.onerror = (error) => {
+          logger.error("WebSocket error", { error, url: this.url });
           this.errorHandlers.forEach((handler) => handler(error));
-          reject(new Error("WebSocket connection failed"));
+          // Don't reject here if already connected - let onclose handle it
+          if (this.connectionState === "connecting") {
+            this.setConnectionState("disconnected");
+            reject(new Error("WebSocket connection failed"));
+          }
         };
 
-        this.ws.onclose = () => {
+        this.ws.onclose = (event) => {
+          logger.websocket("WebSocket closed", { 
+            code: event.code, 
+            reason: event.reason,
+            wasClean: event.wasClean 
+          });
+          
+          this.stopHeartbeat();
           this.disconnectHandlers.forEach((handler) => handler());
 
           if (!this.isIntentionallyClosed && this.config.enabled) {
+            this.setConnectionState("reconnecting");
             this.scheduleReconnect();
+          } else {
+            this.setConnectionState("disconnected");
           }
         };
       } catch (error) {
+        this.setConnectionState("disconnected");
         reject(error);
       }
     });
@@ -142,10 +184,14 @@ export class WebSocketConnection {
       this.reconnectTimer = null;
     }
 
+    this.stopHeartbeat();
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
+
+    this.setConnectionState("disconnected");
   }
 
   /**
@@ -201,6 +247,16 @@ export class WebSocketConnection {
     };
   }
 
+  onConnectionStateChange(handler: ConnectionStateHandler): () => void {
+    this.connectionStateHandlers.push(handler);
+    // Immediately notify of current state
+    handler(this.connectionState);
+    return () => {
+      const index = this.connectionStateHandlers.indexOf(handler);
+      if (index > -1) this.connectionStateHandlers.splice(index, 1);
+    };
+  }
+
   /**
    * Get current connection state
    */
@@ -212,25 +268,73 @@ export class WebSocketConnection {
     return this.ws?.readyState === WebSocket.CONNECTING;
   }
 
+  get currentState(): ConnectionState {
+    return this.connectionState;
+  }
+
   /**
    * Schedule a reconnection attempt
    */
   private scheduleReconnect(): void {
     if (this.reconnectAttempt >= this.config.reconnectAttempts) {
       logger.error("Max reconnection attempts reached", { attempts: this.reconnectAttempt });
+      this.setConnectionState("disconnected");
       return;
     }
 
-    const delay =
-      this.config.reconnectDelay * Math.pow(2, this.reconnectAttempt);
+    // Exponential backoff with cap at MAX_RECONNECT_DELAY (30s)
+    const baseDelay = this.config.reconnectDelay;
+    const exponentialDelay = baseDelay * Math.pow(2, this.reconnectAttempt);
+    const delay = Math.min(exponentialDelay, this.MAX_RECONNECT_DELAY);
+    
     this.reconnectAttempt++;
 
+    logger.websocket("Scheduling reconnection", { 
+      attempt: this.reconnectAttempt, 
+      delayMs: delay 
+    });
+
     this.reconnectTimer = setTimeout(() => {
-      logger.websocket("Reconnecting", { attempt: this.reconnectAttempt });
+      logger.websocket("Attempting reconnection", { attempt: this.reconnectAttempt });
       this.connect().catch((error) => {
         logger.error("Reconnection failed", error);
       });
     }, delay);
+  }
+
+  /**
+   * Start heartbeat monitoring
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.lastHeartbeat = Date.now();
+    
+    // Check heartbeat every 30 seconds
+    this.heartbeatInterval = setInterval(() => {
+      const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeat;
+      
+      // If no message received in 60 seconds, consider connection stale
+      if (timeSinceLastHeartbeat > 60000) {
+        logger.warn("Heartbeat timeout - no messages received", {
+          timeSinceLastHeartbeat,
+        });
+        
+        // Close and reconnect
+        if (this.ws) {
+          this.ws.close();
+        }
+      }
+    }, 30000);
+  }
+
+  /**
+   * Stop heartbeat monitoring
+   */
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
   }
 }
 

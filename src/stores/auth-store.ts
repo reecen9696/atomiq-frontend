@@ -72,7 +72,7 @@ export const useAuthStore = create<AuthState>()(
           user: state.user
             ? {
                 ...state.user,
-                vaultBalance: (state.user.vaultBalance || 0) - amount,
+                vaultBalance: (state.user.vaultBalance || 0) + amount,
               }
             : null,
         })),
