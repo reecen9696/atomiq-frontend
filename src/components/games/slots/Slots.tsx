@@ -282,8 +282,7 @@ const Slots: React.FC = () => {
 
   const wallet = useWallet();
   const { publicKey, signMessage } = wallet;
-  const { isConnected, openWalletModal, user, updateVaultInfo } =
-    useAuthStore();
+  const { isConnected, openWalletModal, user } = useAuthStore();
 
   const allowanceService = useAtomikAllowance();
   const allowance = useAllowanceForCasino(
@@ -382,18 +381,13 @@ const Slots: React.FC = () => {
             win.payline_index,
           ]) || [];
 
-        // Update balance
+        // Update balance using atomic method
         const betAmountNum = result.payment?.bet_amount || betAmount;
         const payoutAmount = result.payment?.payout_amount || 0;
-        const vaultBalance = currentUser.vaultBalance || 0;
-        const vaultAddress = currentUser.vaultAddress || "";
+        const won = payoutAmount > 0;
 
-        if (payoutAmount > 0) {
-          const netProfit = payoutAmount - betAmountNum;
-          updateVaultInfo(vaultAddress, vaultBalance + netProfit);
-        } else {
-          updateVaultInfo(vaultAddress, vaultBalance - betAmountNum);
-        }
+        const { processBetOutcome } = useAuthStore.getState();
+        processBetOutcome(betAmountNum, won, payoutAmount);
 
         // Show results in PixiJS
         if (gameAppRef.current) {
@@ -416,7 +410,6 @@ const Slots: React.FC = () => {
     allowance,
     linesCount,
     betAmount,
-    updateVaultInfo,
   ]);
 
   // Handle messages from SlotApp/SlotLayer

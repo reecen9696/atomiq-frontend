@@ -445,8 +445,7 @@ const Dice: React.FC = () => {
   const classes = useStyles();
   const wallet = useWallet();
   const { publicKey, signMessage } = wallet;
-  const { isConnected, openWalletModal, user, updateVaultInfo } =
-    useAuthStore();
+  const { isConnected, openWalletModal, user } = useAuthStore();
 
   // Phase 4.2: Initialize allowance service for wallet signatures
   const allowanceService = useAtomikAllowance();
@@ -541,28 +540,13 @@ const Dice: React.FC = () => {
     ) {
       processedBetRef.current = betResponse.game_id;
 
-      // ✅ Update balance based on bet outcome
-      const currentUser = useAuthStore.getState().user;
-      if (currentUser) {
-        const won = betResponse.outcome === "win";
-        const payoutAmount = betResponse.payment?.payout_amount || 0;
-        const betAmountNum = betResponse.payment?.bet_amount || 0;
+      // ✅ Update balance based on bet outcome using atomic method
+      const won = betResponse.outcome === "win";
+      const payoutAmount = betResponse.payment?.payout_amount || 0;
+      const betAmountNum = betResponse.payment?.bet_amount || 0;
 
-        // Get current balance directly from fresh store state
-        const currentVaultBalance = currentUser.vaultBalance || 0;
-        const vaultAddress = currentUser.vaultAddress || "";
-
-        if (won) {
-          // Win: add net profit (payout - original bet)
-          const netProfit = payoutAmount - betAmountNum;
-          const newBalance = currentVaultBalance + netProfit;
-          updateVaultInfo(vaultAddress, newBalance);
-        } else {
-          // Loss: subtract bet amount
-          const newBalance = currentVaultBalance - betAmountNum;
-          updateVaultInfo(vaultAddress, newBalance);
-        }
-      }
+      const { processBetOutcome } = useAuthStore.getState();
+      processBetOutcome(betAmountNum, won, payoutAmount);
 
       const animContainer =
         document.getElementsByClassName("DiceAnimContainer")[0];
@@ -607,13 +591,7 @@ const Dice: React.FC = () => {
         settingData.animation ? 300 : 0,
       );
     }
-  }, [
-    betResponse,
-    settingData.animation,
-    playProfitSound,
-    playLostSound,
-    updateVaultInfo,
-  ]);
+  }, [betResponse, settingData.animation, playProfitSound, playLostSound]);
 
   const handleChangeSlider = (event: Event, value: number | number[]) => {
     const numValue = Array.isArray(value) ? value[0] : value;

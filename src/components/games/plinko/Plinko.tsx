@@ -300,8 +300,7 @@ interface RippleEffect {
 const Plinko = () => {
   const classes = useStyles();
   const { publicKey, signMessage } = useWallet();
-  const { isConnected, user, updateVaultInfo, openWalletModal } =
-    useAuthStore();
+  const { isConnected, user, openWalletModal } = useAuthStore();
 
   // Initialize allowance service for wallet signatures
   const allowanceService = useAtomikAllowance();
@@ -738,16 +737,13 @@ const Plinko = () => {
       if (response.data && response.data.status === "complete") {
         setBetResponse(response.data);
 
-        // Update vault balance
-        if (updateVaultInfo && user?.vaultAddress) {
-          const currentBalance = user.vaultBalance || 0;
-          const winAmount = betAmount * response.data.result.multiplier;
-          const newBalance =
-            response.data.result.outcome === "win"
-              ? currentBalance + (winAmount - betAmount)
-              : currentBalance - betAmount;
-          updateVaultInfo(user.vaultAddress, newBalance);
-        }
+        // Update vault balance using atomic method
+        const won = response.data.result.outcome === "win";
+        const winAmount = betAmount * response.data.result.multiplier;
+        const payout = won ? winAmount : 0;
+
+        const { processBetOutcome } = useAuthStore.getState();
+        processBetOutcome(betAmount, won, payout);
 
         // Drop ball - allow immediate next bet
         dropBall(response.data.result.bucket);
