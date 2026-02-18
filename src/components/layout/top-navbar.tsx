@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useBetTrackingStore } from "@/stores/bet-tracking-store";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -10,7 +10,7 @@ import { useBalance } from "@/hooks/useBalance";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { PlayTimerModal } from "@/components/wallet/play-timer-modal";
 import { WalletManageModal } from "@/components/wallet/wallet-manage-modal";
-import { walletToast } from "@/lib/toast";
+import { walletToast, toast } from "@/lib/toast";
 import { formatSOL, formatAddress as utilFormatAddress } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 
@@ -22,6 +22,7 @@ export function TopNavbar() {
     isConnected,
     user,
     isConnecting,
+    rpcAvailable,
     disconnect: authDisconnect,
     openWalletModal,
   } = useAuthStore();
@@ -36,10 +37,26 @@ export function TopNavbar() {
   } = useVaultBalance();
   const { pendingBets } = useBetTrackingStore();
 
+  const hasShownRpcToast = useRef(false);
+
   // Reset dropdown when connection state changes
   useEffect(() => {
     setIsDropdownOpen(false);
   }, [isConnected]);
+
+  // Show toast when RPC becomes unavailable
+  useEffect(() => {
+    if (!rpcAvailable && isConnected && !hasShownRpcToast.current) {
+      hasShownRpcToast.current = true;
+      toast.error(
+        "Solana RPC unavailable",
+        "Unable to connect to the Solana network. Wallet features are temporarily disabled.",
+      );
+    }
+    if (rpcAvailable) {
+      hasShownRpcToast.current = false;
+    }
+  }, [rpcAvailable, isConnected]);
 
   const handleWalletClick = useCallback(() => {
     setIsWalletManageModalOpen(true);
@@ -99,7 +116,12 @@ export function TopNavbar() {
 
       {/* Center Section - Conditional Based on Auth State */}
       <div className="flex items-center gap-3">
-        {isConnected ? (
+        {isConnected && !rpcAvailable && (
+          <div className="flex items-center gap-2 px-3 py-2 border border-red-500/30 bg-red-500/10 rounded-sm">
+            <span className="text-[12px] text-red-400">Solana RPC unavailable</span>
+          </div>
+        )}
+        {isConnected && rpcAvailable ? (
           <>
             {/* Currency Selector - Only when connected AND vault exists */}
             {hasVault && (
@@ -172,7 +194,7 @@ export function TopNavbar() {
               <span className="text-[14px] font-medium text-white">Wallet</span>
             </button>
           </>
-        ) : (
+        ) : !isConnected ? (
           /* Connect Button - Not Connected State */
           <button
             onClick={openWalletModal}
@@ -189,11 +211,11 @@ export function TopNavbar() {
               {isConnecting ? "Connecting..." : "Connect"}
             </span>
           </button>
-        )}
+        ) : null}
       </div>
 
-      {/* Right Section - Only when connected AND vault exists */}
-      {isConnected && hasVault && (
+      {/* Right Section - Only when connected AND vault exists AND RPC available */}
+      {isConnected && hasVault && rpcAvailable && (
         <div className="flex items-center gap-3">
           {/* Crown Icon - Only when connected */}
           <div

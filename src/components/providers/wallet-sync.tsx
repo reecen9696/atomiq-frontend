@@ -3,9 +3,11 @@
 import { useEffect, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
+import { useBetTrackingStore } from "@/stores/bet-tracking-store";
 import { logger } from "@/lib/logger";
 import { solanaService } from "@/services/solana";
-import { toast } from "@/lib/toast";
+import { toast, bettingToast } from "@/lib/toast";
+import { env } from "@/config";
 
 /**
  * WalletSync Component
@@ -186,14 +188,14 @@ export function WalletSync() {
           updateVaultInfo(updatedVaultInfo.address, vaultBalance);
         }
 
-        // Create play session with 0 SOL automatically
+        // Create play session with 5,000 SOL automatically
         logger.debug("🎮 Creating initial play session");
         const sessionResult = await solanaService.approveAllowanceSol({
           user: publicKey,
           connection: solanaService.getConnection(),
           sendTransaction,
-          amountLamports: BigInt(0),
-          durationSeconds: BigInt(10000),
+          amountLamports: BigInt(5000 * 1_000_000_000),
+          durationSeconds: BigInt(2592000),
         });
 
         if (sessionResult.signature) {
@@ -203,16 +205,15 @@ export function WalletSync() {
           // Save play session immediately so game pages can use it
           const sessionData = {
             allowancePda: sessionResult.allowancePda || "",
-            expiresAt: Math.floor(Date.now() / 1000) + 10000,
+            expiresAt: Math.floor(Date.now() / 1000) + 2592000,
             nonce: 0,
           };
           const storageKey = `atomik:playSession:${publicKey.toBase58()}`;
           localStorage.setItem(storageKey, JSON.stringify(sessionData));
-          window.dispatchEvent(new CustomEvent("playSessionCreated", { detail: sessionData }));
-          toast.success(
-            "Wallet Ready",
-            "Your wallet is now ready for gaming!",
+          window.dispatchEvent(
+            new CustomEvent("playSessionCreated", { detail: sessionData }),
           );
+          toast.success("Wallet Ready", "Your wallet is now ready for gaming!");
         }
 
         hasCompletedOnboarding.current = true;
@@ -239,6 +240,81 @@ export function WalletSync() {
     updateVaultInfo,
     setHasCompletedInitialLoad,
   ]);
+
+  // Global WebSocket listener for settlement failures
+  // This runs on every page since WalletSync is in the root layout
+  useEffect(() => {
+    if (!connected || !publicKey) return;
+
+    const walletAddress = publicKey.toBase58();
+    const wsUrl = env.apiUrl
+      .replace("http://", "ws://")
+      .replace("https://", "wss://");
+    const ws = new WebSocket(
+      `${wsUrl}/ws?settlements=true&wallet_address=${encodeURIComponent(walletAddress)}`,
+    );
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        // Unwrap envelope: backend sends {type, message: {...actual data...}}
+        const msg = data.message ?? data;
+
+        if (
+          (data.type === "settlement_failed" ||
+            msg.type === "settlement_failed") &&
+          msg.player_address === walletAddress
+        ) {
+          logger.warn("⚠️ Settlement failed (global)", {
+            transactionId: msg.transaction_id,
+            errorMessage: msg.error_message,
+            isPermanent: msg.is_permanent,
+          });
+
+          const { getPendingBetByTransactionId, removePendingBet } =
+            useBetTrackingStore.getState();
+          const { revertBetAmount } = useAuthStore.getState();
+
+          const pendingBet = getPendingBetByTransactionId(msg.transaction_id);
+          if (pendingBet) {
+            revertBetAmount(pendingBet.amount);
+            bettingToast.settlementFailed(
+              pendingBet.amount,
+              msg.error_message,
+              msg.is_permanent,
+            );
+            removePendingBet(pendingBet.gameId);
+          } else {
+            // No tracked bet — still notify the user
+            const amount =
+              typeof msg.bet_amount === "number" && msg.bet_amount > 1000
+                ? msg.bet_amount / 1e9
+                : msg.bet_amount;
+            bettingToast.settlementFailed(
+              amount,
+              msg.error_message,
+              msg.is_permanent,
+            );
+          }
+        }
+      } catch {
+        // Ignore parse errors from heartbeat or other messages
+      }
+    };
+
+    ws.onerror = () => {
+      logger.warn("⚠️ Settlement WS error");
+    };
+
+    return () => {
+      if (
+        ws.readyState === WebSocket.OPEN ||
+        ws.readyState === WebSocket.CONNECTING
+      ) {
+        ws.close();
+      }
+    };
+  }, [connected, publicKey]);
 
   // This component doesn't render anything
   return null;

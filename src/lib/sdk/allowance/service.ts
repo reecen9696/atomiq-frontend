@@ -213,7 +213,7 @@ export class AtomikAllowanceService implements AllowanceOperations {
     allowancePda: string;
     usedNonce: number;
   }> {
-    const { userPublicKey, amount, duration = 10000 } = params;
+    const { userPublicKey, amount, duration = 2592000 } = params;
     const userPubkey = new PublicKey(userPublicKey);
 
     logger.transaction("allowance-approve", {

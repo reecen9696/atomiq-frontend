@@ -294,7 +294,7 @@ export function useAllowance(
     async (
       spender: string,
       amount: number,
-      duration = 10000,
+      duration = 2592000,
     ): Promise<{
       signature: string;
       allowancePda: string;
@@ -373,8 +373,12 @@ export function useAllowance(
           });
         }
 
-        // Refresh allowances after approval
-        await refreshAllowances(spender);
+        // Refresh allowances in the background — don't block the caller
+        refreshAllowances(spender).catch((err) =>
+          logger.warn("⚠️ Background allowance refresh failed:", {
+            error: err,
+          }),
+        );
 
         return result;
       } catch (error) {
@@ -466,8 +470,12 @@ export function useAllowance(
           });
         }
 
-        // Refresh allowances after extension
-        await refreshAllowances(spender);
+        // Refresh allowances in the background — don't block the caller
+        refreshAllowances(spender).catch((err) =>
+          logger.warn("⚠️ Background allowance refresh failed:", {
+            error: err,
+          }),
+        );
 
         return result;
       } catch (error) {

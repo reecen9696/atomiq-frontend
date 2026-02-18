@@ -31,9 +31,9 @@ export function WinnerCard({ gameName, gameImage, amount }: WinnerCardProps) {
           alt={gameName}
           width={43}
           height={58}
-          className="rounded-sm object-cover shadow-xl"
+          className="rounded-sm object-cover"
           draggable={false}
-          style={{ width: "43px", height: "58px" }}
+          style={{ width: "43px", height: "60px" }}
         />
       </div>
 

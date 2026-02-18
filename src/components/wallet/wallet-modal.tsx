@@ -170,11 +170,11 @@ function WalletModalComponent() {
       setVaultCreated(true);
       await refreshVaultInfo(); // Refresh vault state to get latest info
 
-      logger.transaction("vault-init", { 
+      logger.transaction("vault-init", {
         status: "success",
-        vaultPda, 
+        vaultPda,
         signature,
-        explorer: solanaService.getExplorerUrl(signature)
+        explorer: solanaService.getExplorerUrl(signature),
       });
 
       toast.success("Vault created", "Your smart vault is ready to use");
@@ -258,7 +258,7 @@ function WalletModalComponent() {
         vaultPda,
         amount: deposit,
         signature,
-        explorer: solanaService.getExplorerUrl(signature)
+        explorer: solanaService.getExplorerUrl(signature),
       });
 
       toast.success("Funds added", `Deposited ${amount} SOL to your vault`);
@@ -311,9 +311,9 @@ function WalletModalComponent() {
       setErrorMsg("");
       logger.transaction("allowance-create", { status: "starting" });
 
-      // Create an allowance for 5 SOL that expires in 10000 seconds (same as test-ui defaults)
-      const allowanceAmount = BigInt(5 * 1_000_000_000); // 5 SOL in lamports
-      const durationSeconds = BigInt(10000); // 10000 seconds
+      // Create an allowance for 5,000 SOL that expires in 30 days
+      const allowanceAmount = BigInt(5000 * 1_000_000_000); // 5,000 SOL in lamports
+      const durationSeconds = BigInt(2592000); // 30 days
 
       const { signature, allowancePda } =
         await solanaService.approveAllowanceSol({
@@ -336,7 +336,9 @@ function WalletModalComponent() {
       const storageKey = `atomik:playSession:${publicKey.toBase58()}`;
       localStorage.setItem(storageKey, JSON.stringify(sessionData));
       // Dispatch event so game components re-read the session without a refresh
-      window.dispatchEvent(new CustomEvent("playSessionCreated", { detail: sessionData }));
+      window.dispatchEvent(
+        new CustomEvent("playSessionCreated", { detail: sessionData }),
+      );
 
       logger.transaction("allowance-create", {
         status: "success",
@@ -344,7 +346,7 @@ function WalletModalComponent() {
         amount: Number(allowanceAmount) / 1e9,
         duration: Number(durationSeconds),
         signature,
-        explorer: solanaService.getExplorerUrl(signature)
+        explorer: solanaService.getExplorerUrl(signature),
       });
 
       toast.success("Session created", "You can now place bets!");
@@ -363,8 +365,8 @@ function WalletModalComponent() {
           const { signature, allowancePda } =
             await solanaService.approveAllowanceSol({
               user: publicKey,
-              amountLamports: BigInt(5 * 1_000_000_000),
-              durationSeconds: BigInt(10000),
+              amountLamports: BigInt(5000 * 1_000_000_000),
+              durationSeconds: BigInt(2592000),
               sendTransaction: async (tx, connection, options) => {
                 return sendTransaction(tx, connection, {
                   ...options,
@@ -374,16 +376,24 @@ function WalletModalComponent() {
               signTransaction: signTransaction ?? undefined,
               connection: solanaService.getConnection(),
             });
-          logger.transaction("allowance-create", { status: "retry-success", signature });
+          logger.transaction("allowance-create", {
+            status: "retry-success",
+            signature,
+          });
           // Save play session on retry success too
           const retrySessionData = {
             allowancePda,
-            expiresAt: Math.floor(Date.now() / 1000) + 10000,
+            expiresAt: Math.floor(Date.now() / 1000) + 2592000,
             nonce: 0,
           };
           const retryStorageKey = `atomik:playSession:${publicKey.toBase58()}`;
-          localStorage.setItem(retryStorageKey, JSON.stringify(retrySessionData));
-          window.dispatchEvent(new CustomEvent("playSessionCreated", { detail: retrySessionData }));
+          localStorage.setItem(
+            retryStorageKey,
+            JSON.stringify(retrySessionData),
+          );
+          window.dispatchEvent(
+            new CustomEvent("playSessionCreated", { detail: retrySessionData }),
+          );
           setErrorMsg("");
           toast.success("Session created", "You can now place bets!");
           handleClose();

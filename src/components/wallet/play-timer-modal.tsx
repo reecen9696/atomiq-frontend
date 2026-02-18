@@ -156,7 +156,9 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
             nonce: (mostRecent as any).nonce,
           };
           allowanceHook.savePlaySessionData(playSessionData);
-          window.dispatchEvent(new CustomEvent("playSessionCreated", { detail: playSessionData }));
+          window.dispatchEvent(
+            new CustomEvent("playSessionCreated", { detail: playSessionData }),
+          );
         } else {
           logger.warn("⚠️ No active allowance found");
           setExpiresAt(null);
@@ -226,10 +228,9 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
       setIsCreatingNew(true);
       logger.transaction("allowance-create-new", { status: "starting" });
 
-      // Create an allowance for 0 SOL that expires in 10000 seconds
-      // This creates a new session PDA without depositing funds
-      const allowanceAmount = BigInt(0); // 0 SOL - no funds locked
-      const durationSeconds = BigInt(10000); // 10000 seconds (~2.8 hours)
+      // Create an allowance for 5,000 SOL that expires in 30 days
+      const allowanceAmount = BigInt(5000 * 1_000_000_000); // 5,000 SOL in lamports
+      const durationSeconds = BigInt(2592000); // 30 days
 
       const { signature, allowancePda, usedNonce } =
         await solanaService.approveAllowanceSol({
@@ -257,33 +258,16 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         nonce: Number(usedNonce),
       };
       allowanceHook.savePlaySessionData(playSessionData);
-      window.dispatchEvent(new CustomEvent("playSessionCreated", { detail: playSessionData }));
+      window.dispatchEvent(
+        new CustomEvent("playSessionCreated", { detail: playSessionData }),
+      );
 
+      // Close modal and show toast immediately on success
+      onClose();
       toast.success(
         "Session created",
         "New play session created successfully!",
       );
-
-      // Refresh the display
-      setExpiresAt(BigInt(playSessionData.expiresAt));
-      setAllowancePda(allowancePda);
-
-      // Fetch the actual allowance data from blockchain
-      const allowanceInfo = await allowanceService.getAllowanceInfo(
-        allowancePda,
-        allowanceService.getConnection(),
-      );
-
-      if (allowanceInfo.accountExists && allowanceInfo.allowanceData) {
-        setAllowanceData(allowanceInfo.allowanceData);
-        const totalAmount = Number(allowanceInfo.allowanceData.amountLamports);
-        const remainingAmount = Number(
-          allowanceInfo.allowanceData.remainingLamports,
-        );
-        const percentage =
-          totalAmount > 0 ? (remainingAmount / totalAmount) * 100 : 0;
-        setProgressPercentage(Math.max(0, Math.min(100, percentage)));
-      }
     } catch (error) {
       logger.error("❌ Failed to create new session", error);
       const errorMsg =
@@ -298,6 +282,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
     signTransaction,
     allowanceHook,
     allowanceService,
+    onClose,
   ]);
 
   const handleExtendTimer = useCallback(async () => {
@@ -310,59 +295,22 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
     }
 
     try {
-      // Extend current allowance for another 10000 seconds with an additional 100 SOL
-      const result = await allowanceHook.extend(10000, 100);
+      // Extend current allowance for another 30 days with an additional 5,000 SOL
+      const result = await allowanceHook.extend(2592000, 5000);
 
       if (result) {
-        toast.success(
-          "Session extended",
-          "Your play session has been extended successfully",
-        );
         logger.transaction("allowance-extend", {
           signature: result.signature,
           allowancePda: result.allowancePda,
         });
 
-        // Get updated cached data (should be available immediately after extension)
-        const updatedCache = allowanceHook.getCachedPlaySession();
-        if (updatedCache) {
-          // Fetch fresh balance from blockchain using cached PDA
-          const allowanceInfo = await allowanceService.getAllowanceInfo(
-            updatedCache.allowancePda,
-            allowanceService.getConnection(),
-          );
-
-          if (allowanceInfo.accountExists && allowanceInfo.allowanceData) {
-            const data = allowanceInfo.allowanceData;
-            setExpiresAt(BigInt(data.expiresAt));
-            setAllowanceData(data);
-            setAllowancePda(updatedCache.allowancePda);
-
-            // Update progress percentage
-            const totalAmount = Number(data.amountLamports);
-            const remainingAmount = Number(data.remainingLamports);
-            const percentage =
-              totalAmount > 0 ? (remainingAmount / totalAmount) * 100 : 0;
-            setProgressPercentage(Math.max(0, Math.min(100, percentage)));
-          }
-        } else {
-          // Fallback to slow refresh if cache not available
-          const mostRecent = await allowanceHook.getMostRecentActive();
-          if (mostRecent?.data) {
-            setExpiresAt(mostRecent.data.expiresAt);
-            setAllowanceData(mostRecent.data);
-
-            const totalAmount = Number(mostRecent.data.amountLamports);
-            const remainingAmount = Number(mostRecent.data.remainingLamports);
-            const percentage =
-              totalAmount > 0 ? (remainingAmount / totalAmount) * 100 : 0;
-            setProgressPercentage(Math.max(0, Math.min(100, percentage)));
-          }
-        }
-
+        // Close modal and show toast immediately on success
         onClose();
+        toast.success(
+          "Session extended",
+          "Your play session has been extended successfully",
+        );
       } else {
-        // Error was already handled in the hook and displayed in toast
         logger.error("Failed to extend session - no result returned");
       }
     } catch (error) {
@@ -576,8 +524,30 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
             <button
               onClick={handleExtendTimer}
               disabled={allowanceHook.extending || !publicKey || isCreatingNew}
-              className="w-full px-6 py-3 bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
+              className="w-full px-6 py-3 bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors flex items-center justify-center gap-2"
             >
+              {allowanceHook.extending && (
+                <svg
+                  className="animate-spin h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+              )}
               {allowanceHook.extending ? "Extending..." : "Extend Session"}
             </button>
           )}
@@ -589,8 +559,30 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
               isCreatingNew ||
               allowanceHook.extending
             }
-            className="w-full px-6 py-3 bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
+            className="w-full px-6 py-3 bg-[#674AE5] hover:bg-[#8B75F6] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-sm transition-colors flex items-center justify-center gap-2"
           >
+            {isCreatingNew && (
+              <svg
+                className="animate-spin h-4 w-4"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+            )}
             {isCreatingNew
               ? "Creating New Session..."
               : allowanceData

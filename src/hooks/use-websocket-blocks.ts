@@ -3,11 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { createWebSocketManager } from "@/lib/sdk/websocket/manager";
-import type { BlockUpdateMessage } from "@/lib/sdk/websocket/manager";
+import type { BlockUpdateMessage, SettlementFailedMessage } from "@/lib/sdk/websocket/manager";
 import type { Block } from "@/mocks/blocks";
 import { createAtomikConfig } from "@/lib/sdk";
 import { env } from "@/config";
 import { logger } from "@/lib/logger";
+import { useAuthStore } from "@/stores/auth-store";
+import { useBetTrackingStore } from "@/stores/bet-tracking-store";
+import { bettingToast } from "@/lib/toast";
 
 interface UseWebSocketBlocksState {
   blocks: Block[];
@@ -72,6 +75,9 @@ export function useWebSocketBlocks(
   limit: number = 5,
 ): UseWebSocketBlocksResult {
   const { publicKey } = useWallet();
+  const { revertBetAmount } = useAuthStore();
+  const { getPendingBetByTransactionId, removePendingBet, cleanupOldBets } =
+    useBetTrackingStore();
   const [state, setState] = useState<UseWebSocketBlocksState>({
     blocks: [],
     isConnected: false,
@@ -165,6 +171,45 @@ export function useWebSocketBlocks(
 
       unsubscribeRef.current = unsubscribe;
 
+      // Subscribe to settlement_failed messages for toast notifications
+      const unsubSettlement = connection.subscribe(
+        "settlement_failed",
+        (raw: any) => {
+          // Backend wraps the payload in a `message` envelope
+          const message = raw.message ?? raw;
+
+          // Only handle failures for the current user
+          if (message.player_address !== publicKey?.toBase58()) return;
+
+          logger.warn("⚠️ Settlement failed", {
+            transactionId: message.transaction_id,
+            errorMessage: message.error_message,
+            isPermanent: message.is_permanent,
+          });
+
+          const pendingBet = getPendingBetByTransactionId(message.transaction_id);
+          if (pendingBet) {
+            revertBetAmount(pendingBet.amount);
+            bettingToast.settlementFailed(
+              pendingBet.amount,
+              message.error_message,
+              message.is_permanent,
+            );
+            removePendingBet(pendingBet.gameId);
+          } else {
+            // No tracked bet — still show a toast so the user knows
+            const amount = typeof message.bet_amount === 'number' && message.bet_amount > 1000
+              ? message.bet_amount / 1e9  // lamports
+              : message.bet_amount;       // already SOL
+            bettingToast.settlementFailed(
+              amount,
+              message.error_message,
+              message.is_permanent,
+            );
+          }
+        },
+      );
+
       // Set up connection status handlers
       const onConnect = connection.onConnect(() => {
         setState((prev) => ({
@@ -192,6 +237,7 @@ export function useWebSocketBlocks(
       const originalUnsubscribe = unsubscribeRef.current;
       unsubscribeRef.current = () => {
         originalUnsubscribe?.();
+        unsubSettlement();
         onConnect();
         onDisconnect();
         onError();

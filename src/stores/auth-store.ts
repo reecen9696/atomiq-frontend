@@ -17,6 +17,7 @@ interface AuthState {
   isWalletModalOpen: boolean;
   isOnboarding: boolean;
   hasCompletedInitialLoad: boolean;
+  rpcAvailable: boolean;
   connect: (publicKey: string) => void;
   disconnect: () => void;
   updateBalance: (balance: number) => void;
@@ -26,6 +27,7 @@ interface AuthState {
   setConnecting: (connecting: boolean) => void;
   setOnboarding: (onboarding: boolean) => void;
   setHasCompletedInitialLoad: (completed: boolean) => void;
+  setRpcAvailable: (available: boolean) => void;
   openWalletModal: () => void;
   closeWalletModal: () => void;
 }
@@ -39,6 +41,7 @@ export const useAuthStore = create<AuthState>()(
       isWalletModalOpen: false,
       isOnboarding: false,
       hasCompletedInitialLoad: false,
+      rpcAvailable: true,
       connect: (publicKey: string) =>
         set({
           isConnected: true,
@@ -97,6 +100,7 @@ export const useAuthStore = create<AuthState>()(
       setOnboarding: (isOnboarding: boolean) => set({ isOnboarding }),
       setHasCompletedInitialLoad: (hasCompletedInitialLoad: boolean) =>
         set({ hasCompletedInitialLoad }),
+      setRpcAvailable: (rpcAvailable: boolean) => set({ rpcAvailable }),
       openWalletModal: () => set({ isWalletModalOpen: true }),
       closeWalletModal: () => set({ isWalletModalOpen: false }),
     }),

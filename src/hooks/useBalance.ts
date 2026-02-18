@@ -11,12 +11,13 @@ const RETRY_DELAY_MS = 2000;
 export function useBalance() {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
-  const { updateBalance } = useAuthStore();
+  const { updateBalance, setRpcAvailable, rpcAvailable } = useAuthStore();
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const retryCountRef = useRef(0);
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasShownRpcToast = useRef(false);
 
   const fetchBalance = useCallback(async () => {
     if (!publicKey) {
@@ -33,6 +34,10 @@ export function useBalance() {
       setBalance(sol);
       updateBalance(sol);
       retryCountRef.current = 0; // Reset retries on success
+      if (!rpcAvailable) {
+        setRpcAvailable(true);
+        hasShownRpcToast.current = false;
+      }
     } catch (err) {
       logger.error("Failed to fetch balance:", err);
 
@@ -56,6 +61,10 @@ export function useBalance() {
           }, delay);
         } else {
           setError("RPC endpoint unreachable. Balance may be stale.");
+          setRpcAvailable(false);
+          if (!hasShownRpcToast.current) {
+            hasShownRpcToast.current = true;
+          }
         }
       } else {
         setError(errorMessage);

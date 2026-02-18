@@ -13,7 +13,7 @@ const BALANCE_DRIFT_THRESHOLD = 0.001; // 0.001 SOL threshold (absolute amount, 
 
 export function useVaultBalance() {
   const { publicKey } = useWallet();
-  const { updateVaultInfo, user } = useAuthStore();
+  const { updateVaultInfo, user, setRpcAvailable } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasVault, setHasVault] = useState(false);
@@ -49,6 +49,7 @@ export function useVaultBalance() {
         setHasVault(true);
         // Single source of truth: auth store
         updateVaultInfo(vaultInfo.address, balance);
+        setRpcAvailable(true);
       } else {
         setHasVault(false);
         updateVaultInfo("", 0);
@@ -70,6 +71,7 @@ export function useVaultBalance() {
         // Keep existing vault state on transient errors — don't hide the balance
         // The user's vault doesn't stop existing just because devnet is slow
         logger.warn("Transient RPC error — keeping last known vault state");
+        setRpcAvailable(false);
       } else {
         // Only reset vault state for genuine "no vault" errors
         setHasVault(false);
