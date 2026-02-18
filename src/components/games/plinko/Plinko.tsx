@@ -268,6 +268,11 @@ interface Particle {
   balance: number;
   isGrowing: boolean;
   r: number;
+  pendingBetOutcome?: {
+    betAmount: number;
+    won: boolean;
+    payout: number;
+  };
   display: (p5: any) => void;
   grow: () => void;
   destroy: () => void;
@@ -355,6 +360,11 @@ const Plinko = () => {
     balance: number;
     isGrowing: boolean;
     r: number;
+    pendingBetOutcome?: {
+      betAmount: number;
+      won: boolean;
+      payout: number;
+    };
 
     constructor(
       x: number,
@@ -752,16 +762,17 @@ const Plinko = () => {
       if (responseData && (responseData.status === "complete" || responseData.result)) {
         setBetResponse(responseData);
 
-        // Update vault balance using atomic method with server-authoritative values
+        // Store bet outcome on the particle — balance will update when ball lands
         const won = responseData.result.outcome === "win";
         const serverBetAmount = responseData.result.payment?.bet_amount || betAmount;
         const payout = responseData.result.payment?.payout_amount || (won ? betAmount * responseData.result.multiplier : 0);
 
-        const { processBetOutcome } = useAuthStore.getState();
-        processBetOutcome(serverBetAmount, won, payout);
-
         // Drop ball - allow immediate next bet
-        dropBall(responseData.result.bucket);
+        dropBall(responseData.result.bucket, {
+          betAmount: serverBetAmount,
+          won,
+          payout,
+        });
         setPlayLoading(false);
       } else {
         console.error("❌ Invalid response format:", responseData);
@@ -792,7 +803,7 @@ const Plinko = () => {
   };
 
   // Drop ball - matches original startPlinko()
-  const dropBall = (bucketIndex: number) => {
+  const dropBall = (bucketIndex: number, betOutcome?: { betAmount: number; won: boolean; payout: number }) => {
     const tmpCurRows = rowCount;
     const startX = canvasWidth / 2 - plinkoDistanceX[tmpCurRows] + 1;
 
@@ -816,6 +827,10 @@ const Plinko = () => {
       betAmount,
       particleColor[risk.toLowerCase() as keyof typeof particleColor],
     );
+    // Attach deferred balance update to this particle
+    if (betOutcome) {
+      particle.pendingBetOutcome = betOutcome;
+    }
     particlesRef.current.push(particle);
 
     // Add collision ripple listener for this ball drop
@@ -919,9 +934,16 @@ const Plinko = () => {
               plinkoDistanceX[rowCount],
           );
           const balance = particlesRef.current[i].balance;
+          const pendingOutcome = particlesRef.current[i].pendingBetOutcome;
 
           particlesRef.current[i].destroy();
           particlesRef.current[i] = null as any;
+
+          // Now apply the deferred balance update (when ball visually lands)
+          if (pendingOutcome) {
+            const { processBetOutcome } = useAuthStore.getState();
+            processBetOutcome(pendingOutcome.betAmount, pendingOutcome.won, pendingOutcome.payout);
+          }
 
           // Animate payout button (matches original jQuery behavior)
           const btn = document.getElementById(`payout-btn-${payoutId}`);

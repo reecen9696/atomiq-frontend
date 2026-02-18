@@ -327,6 +327,17 @@ function WalletModalComponent() {
 
       setLastSignature(signature);
 
+      // Save play session to localStorage so game components pick it up immediately
+      const sessionData = {
+        allowancePda,
+        expiresAt: Math.floor(Date.now() / 1000) + Number(durationSeconds),
+        nonce: 0,
+      };
+      const storageKey = `atomik:playSession:${publicKey.toBase58()}`;
+      localStorage.setItem(storageKey, JSON.stringify(sessionData));
+      // Dispatch event so game components re-read the session without a refresh
+      window.dispatchEvent(new CustomEvent("playSessionCreated", { detail: sessionData }));
+
       logger.transaction("allowance-create", {
         status: "success",
         allowancePda,
@@ -364,6 +375,15 @@ function WalletModalComponent() {
               connection: solanaService.getConnection(),
             });
           logger.transaction("allowance-create", { status: "retry-success", signature });
+          // Save play session on retry success too
+          const retrySessionData = {
+            allowancePda,
+            expiresAt: Math.floor(Date.now() / 1000) + 10000,
+            nonce: 0,
+          };
+          const retryStorageKey = `atomik:playSession:${publicKey.toBase58()}`;
+          localStorage.setItem(retryStorageKey, JSON.stringify(retrySessionData));
+          window.dispatchEvent(new CustomEvent("playSessionCreated", { detail: retrySessionData }));
           setErrorMsg("");
           toast.success("Session created", "You can now place bets!");
           handleClose();

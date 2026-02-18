@@ -200,6 +200,15 @@ export function WalletSync() {
           logger.debug("✅ Play session created", {
             signature: sessionResult.signature,
           });
+          // Save play session immediately so game pages can use it
+          const sessionData = {
+            allowancePda: sessionResult.allowancePda || "",
+            expiresAt: Math.floor(Date.now() / 1000) + 10000,
+            nonce: 0,
+          };
+          const storageKey = `atomik:playSession:${publicKey.toBase58()}`;
+          localStorage.setItem(storageKey, JSON.stringify(sessionData));
+          window.dispatchEvent(new CustomEvent("playSessionCreated", { detail: sessionData }));
           toast.success(
             "Wallet Ready",
             "Your wallet is now ready for gaming!",

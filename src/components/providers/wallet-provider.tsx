@@ -15,9 +15,6 @@ import {
 import { clusterApiUrl } from "@solana/web3.js";
 import type { Adapter } from "@solana/wallet-adapter-base";
 
-// Import wallet adapter styles
-import "@solana/wallet-adapter-react-ui/styles.css";
-
 interface WalletProviderProps {
   children: ReactNode;
 }

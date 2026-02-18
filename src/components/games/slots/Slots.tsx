@@ -404,6 +404,13 @@ const Slots: React.FC = () => {
         // Show results in PixiJS
         if (gameAppRef.current) {
           gameAppRef.current.showResult(fairResult, rewardData);
+          // Safety timeout: if PixiJS animation callback fails to fire,
+          // ensure the button is re-enabled after max animation time
+          setTimeout(() => {
+            setPlayLoading(false);
+          }, 8000);
+        } else {
+          setPlayLoading(false);
         }
       } else {
         setPlayLoading(false);
@@ -457,29 +464,44 @@ const Slots: React.FC = () => {
       backgroundAlpha: 0,
       antialias: true,
       autoDensity: true,
+      width: 800,
+      height: 600,
     });
 
     app.setMessageHandler(handleSlotMessage);
-    pixiRef.current.appendChild(app.view);
+
+    const canvas = app.view;
+    pixiRef.current.appendChild(canvas);
     app.startGame();
     gameAppRef.current = app;
 
     const resizeHandler = () => {
       if (!gameAppRef.current) return;
       const parent = pixiRef.current?.parentElement;
-      if (parent) {
+      if (parent && parent.clientWidth > 0 && parent.clientHeight > 0) {
         gameAppRef.current.onResize(parent.clientWidth, parent.clientHeight);
       }
     };
 
     window.addEventListener("resize", resizeHandler);
-    resizeHandler();
+    // Defer initial resize to ensure DOM layout is computed
+    requestAnimationFrame(() => {
+      resizeHandler();
+      // Double-check after a short delay for late layout changes
+      setTimeout(resizeHandler, 100);
+    });
 
     return () => {
       window.removeEventListener("resize", resizeHandler);
       if (gameAppRef.current) {
         gameAppRef.current.destroy(true);
         gameAppRef.current = null;
+      }
+      // Remove any leftover canvas elements from the container
+      if (pixiRef.current) {
+        while (pixiRef.current.firstChild) {
+          pixiRef.current.removeChild(pixiRef.current.firstChild);
+        }
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -72,20 +72,31 @@ export class SlotApp {
     };
     this.layer_slot.setCallbacks(callbacks);
 
+    // Disable PixiJS Web Worker texture loading to avoid CSP blob: issues
+    // This makes loading synchronous on the main thread (still async via fetch)
+    PIXI.settings.CREATE_IMAGE_BITMAP = false;
+
     const keys: string[] = [];
     Resource.forEach((resource) => {
-      PIXI.Assets.add(resource.key, resource.src);
+      // In React StrictMode, the component may remount. PIXI.Assets.add throws
+      // if the key already exists in the global cache, so check first.
+      try {
+        PIXI.Assets.add(resource.key, resource.src);
+      } catch {
+        // Key already registered from a previous mount — safe to ignore
+      }
       keys.push(resource.key);
     });
 
     PIXI.Assets.load(keys, (progress: number) => {
-      console.log("Loading slot assets:", Math.round(progress * 100) + "%");
+      // Asset loading progress
     })
       .then((textures: Record<string, PIXI.Texture>) => {
-        console.log("Slot assets loaded successfully");
         this.started = true;
 
-        if (this.layer_slot !== null) this.layer_slot.init(textures);
+        if (this.layer_slot !== null) {
+          this.layer_slot.init(textures);
+        }
 
         this.animationFn = () => {
           if (this.layer_slot !== null) this.layer_slot.updateAnimation();

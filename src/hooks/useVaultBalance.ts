@@ -57,8 +57,23 @@ export function useVaultBalance() {
       const errorMessage =
         (err as Error).message || "Failed to fetch vault balance";
       setError(errorMessage);
-      setHasVault(false);
-      updateVaultInfo("", 0);
+
+      const isTransient =
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.includes("403") ||
+        errorMessage.includes("rate limit") ||
+        errorMessage.includes("ECONNREFUSED") ||
+        errorMessage.includes("timeout");
+
+      if (isTransient) {
+        // Keep existing vault state on transient errors — don't hide the balance
+        // The user's vault doesn't stop existing just because devnet is slow
+        logger.warn("Transient RPC error — keeping last known vault state");
+      } else {
+        // Only reset vault state for genuine "no vault" errors
+        setHasVault(false);
+        updateVaultInfo("", 0);
+      }
     } finally {
       setLoading(false);
     }

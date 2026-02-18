@@ -156,6 +156,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
             nonce: (mostRecent as any).nonce,
           };
           allowanceHook.savePlaySessionData(playSessionData);
+          window.dispatchEvent(new CustomEvent("playSessionCreated", { detail: playSessionData }));
         } else {
           logger.warn("⚠️ No active allowance found");
           setExpiresAt(null);
@@ -256,6 +257,7 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         nonce: Number(usedNonce),
       };
       allowanceHook.savePlaySessionData(playSessionData);
+      window.dispatchEvent(new CustomEvent("playSessionCreated", { detail: playSessionData }));
 
       toast.success(
         "Session created",

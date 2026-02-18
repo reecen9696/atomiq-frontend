@@ -584,43 +584,52 @@ export class SlotLayer extends BaseLayer {
         time,
         this.backout(0.4),
         null,
-        i === this.reels.length - 1 ? this.reelsComplete : null,
+        i === this.reels.length - 1 ? this.createReelsCompleteHandler() : null,
       );
     }
   }
 
-  reelsComplete(this: Tween) {
-    const self: SlotLayer = (this.object as any).container.parent
-      .parent as SlotLayer;
-    const rewards = self.getRewards();
+  /**
+   * Creates a reelsComplete handler that properly captures `this` (SlotLayer).
+   * The previous approach used `this: Tween` with parent traversal which is fragile.
+   */
+  private createReelsCompleteHandler(): (t: Tween) => void {
+    const self = this;
+    return (_t: Tween) => {
+      self.onReelsComplete();
+    };
+  }
+
+  private onReelsComplete() {
+    const rewards = this.getRewards();
 
     if (rewards.length === 0) {
-      if (self.freespin_mode) self.startFreeSpin();
+      if (this.freespin_mode) this.startFreeSpin();
 
-      if (!self.freespin_mode) {
-        const autoCount = self.callbacks?.getAutoCount() ?? -1;
+      if (!this.freespin_mode) {
+        const autoCount = this.callbacks?.getAutoCount() ?? -1;
         if (autoCount < 0) {
-          if (self.round_payout > 0) {
-            self.showRoundPayout(true);
-            self.callbacks?.postMessage({
+          if (this.round_payout > 0) {
+            this.showRoundPayout(true);
+            this.callbacks?.postMessage({
               type: "playzelo-Slot-Sound",
               data: "win",
             });
           }
-          self.callbacks?.updateLoading(false);
-          self.round_payout = 0;
+          this.callbacks?.updateLoading(false);
+          this.round_payout = 0;
         }
 
-        self.callbacks?.updateGameState();
-        self.callbacks?.bet();
+        this.callbacks?.updateGameState();
+        this.callbacks?.bet();
       }
     } else {
-      self.reward_index = 0;
-      if (!self.freespin_mode && self.isFreeSpin()) {
-        self.showFreespin();
-        self.freespin_mode = true;
+      this.reward_index = 0;
+      if (!this.freespin_mode && this.isFreeSpin()) {
+        this.showFreespin();
+        this.freespin_mode = true;
       } else {
-        self.showReward();
+        this.showReward();
       }
     }
   }
