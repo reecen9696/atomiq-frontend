@@ -193,7 +193,7 @@ export function WalletSync() {
           connection: solanaService.getConnection(),
           sendTransaction,
           amountLamports: BigInt(0),
-          expirationSeconds: 10000,
+          durationSeconds: BigInt(10000),
         });
 
         if (sessionResult.signature) {
