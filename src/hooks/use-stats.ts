@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 import { config, env } from "@/config";
 import { mockStatCards } from "@/mocks";
 import { logger } from "@/lib/logger";
+import { toast } from "@/lib/toast";
 import {
   formatNumber,
   formatPercentage,
@@ -10,11 +12,13 @@ import {
 
 /**
  * Hook for fetching current statistics via direct API call like test-ui
- * Falls back to mock data if API is not available
+ * Returns empty array on error instead of showing mock data
  *
  * @returns React Query result with stats data
  */
 export function useStats() {
+  const hasShownErrorToast = useRef(false);
+
   return useQuery({
     queryKey: ["stats", "current"],
     queryFn: async () => {
@@ -24,14 +28,26 @@ export function useStats() {
       }
 
       try {
-        logger.api("📊 Stats: Fetching from API", `${env.apiUrl}/api/casino/stats`);
+        logger.api(
+          "📊 Stats: Fetching from API",
+          `${env.apiUrl}/api/casino/stats`,
+        );
 
         // Use the same simple fetch approach as test-ui
         const response = await fetch(`${env.apiUrl}/api/casino/stats`);
 
         if (!response.ok) {
-          logger.warn("📊 Stats: API returned error", { status: response.status });
-          throw new Error(`HTTP ${response.status}`);
+          logger.warn("📊 Stats: API returned error", {
+            status: response.status,
+          });
+          if (!hasShownErrorToast.current) {
+            toast.error(
+              "Cannot connect to server",
+              "Failed to load stats data",
+            );
+            hasShownErrorToast.current = true;
+          }
+          return []; // Return empty array instead of throwing
         }
 
         const casinoStats = await response.json();
@@ -66,10 +82,15 @@ export function useStats() {
         ];
 
         logger.debug("📊 Stats: Transformed data", { count: statCards.length });
+        hasShownErrorToast.current = false; // Reset on success
         return statCards;
       } catch (error) {
-        logger.warn("📊 Stats: API failed, using mock data", { error });
-        return mockStatCards; // Fall back to mock data on API failure
+        logger.warn("📊 Stats: API failed, returning empty array", { error });
+        if (!hasShownErrorToast.current) {
+          toast.error("Cannot connect to server", "Unable to fetch stats data");
+          hasShownErrorToast.current = true;
+        }
+        return []; // Return empty array instead of mock data
       }
     },
     enabled: true,

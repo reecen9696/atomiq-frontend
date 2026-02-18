@@ -10,6 +10,7 @@ import {
 import { useBetting, useAllowanceForCasino } from "@/lib/sdk/hooks";
 import type { CoinflipResult } from "@/lib/sdk";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
+import { useBalance } from "@/hooks/useBalance";
 import { bettingToast, toast, walletToast } from "@/lib/toast";
 import { useBetTrackingStore } from "@/stores/bet-tracking-store";
 import { useSettlementErrors } from "@/hooks/useSettlementErrors";
@@ -141,6 +142,15 @@ export function CoinflipGame() {
       return;
     }
 
+    // Check if user has enough balance
+    if (!user?.vaultBalance || user.vaultBalance < amount) {
+      toast.error(
+        "Insufficient funds",
+        "Please fund your wallet to continue playing.",
+      );
+      return;
+    }
+
     if (amount < 0.01) {
       toast.warning("Minimum bet", "Minimum bet is 0.01 SOL");
       return;
@@ -175,14 +185,19 @@ export function CoinflipGame() {
           `atomik:playSession:${publicKey?.toBase58()}`,
         );
         if (cachedData) {
-          throw new Error(
-            "⏰ Your play session has expired! Please click the timer button to extend your session.",
+          toast.error(
+            "Play session expired",
+            "Please click the timer button to extend your session.",
           );
         } else {
-          throw new Error(
-            "❌ No active play session found. Please approve an allowance first.",
+          toast.error(
+            "No active play session",
+            "Please approve an allowance first by clicking the wallet icon.",
           );
         }
+        toast.dismiss(toastId);
+        removePendingBet(gameId);
+        return;
       }
 
       // Place bet with nonce only - no wallet signature needed

@@ -12,6 +12,8 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
+import { useBalance } from "@/hooks/useBalance";
+import { toast } from "@/lib/toast";
 
 import DiceL from "./utils/DiceL";
 import DiceR from "./utils/DiceR";
@@ -657,6 +659,15 @@ const Dice: React.FC = () => {
       return;
     }
 
+    // Check if user has enough balance
+    if (!user?.vaultBalance || user.vaultBalance < betAmount) {
+      toast.error(
+        "Insufficient funds",
+        "Please fund your wallet to continue playing.",
+      );
+      return;
+    }
+
     // Phase 4.2: Check wallet supports message signing
     if (!signMessage) {
       console.error("Wallet does not support message signing");
@@ -700,14 +711,17 @@ const Dice: React.FC = () => {
           `atomik:playSession:${publicKey?.toBase58()}`,
         );
         if (cachedData) {
-          alert(
-            "⏰ Your play session has expired!\n\nPlease click the timer button in the top-right corner to extend your session.",
+          toast.error(
+            "Play session expired",
+            "Please click the timer button in the top-right corner to extend your session.",
           );
         } else {
-          alert(
-            "❌ No active play session found.\n\nPlease approve an allowance first by clicking the wallet icon.",
+          toast.error(
+            "No active play session",
+            "Please approve an allowance first by clicking the wallet icon.",
           );
         }
+        setPlayLoading(false);
         return;
       }
 

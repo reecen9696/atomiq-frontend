@@ -15,10 +15,19 @@ export function RecentWins({
 }: RecentWinsProps) {
   const { data: winners, isLoading, error } = useRecentWins(maxDisplay);
 
-  if (error) {
+  // Show static skeletons for errors or no data
+  if (error || !winners || winners.length === 0) {
     return (
       <section className="w-full">
-        <p className="text-sm text-red-500">Failed to load recent wins</p>
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {Array.from({ length: maxDisplay }).map((_, i) => (
+            <Skeleton
+              key={i}
+              className="h-20 w-40 rounded-sm shrink-0"
+              isStatic
+            />
+          ))}
+        </div>
       </section>
     );
   }
@@ -31,14 +40,6 @@ export function RecentWins({
             <Skeleton key={i} className="h-20 w-40 rounded-sm shrink-0" />
           ))}
         </div>
-      </section>
-    );
-  }
-
-  if (!winners || winners.length === 0) {
-    return (
-      <section className="w-full">
-        <p className="text-sm text-white/60">No recent wins</p>
       </section>
     );
   }

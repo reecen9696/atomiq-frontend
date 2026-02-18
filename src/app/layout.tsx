@@ -2,12 +2,10 @@ import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
-import { TopNavbar } from "@/components/layout/top-navbar";
-import { WalletModal } from "@/components/wallet/wallet-modal";
 import { WalletSync } from "@/components/providers/wallet-sync";
-import { Toaster } from "@/components/ui/toaster";
-import { ErrorBoundary } from "@/components/error-boundary";
+import { LoadingProvider } from "@/components/providers/loading-provider";
+import { LayoutContent } from "@/components/layout/layout-content";
+import Script from "next/script";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -39,16 +37,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs"
+          type="module"
+          strategy="beforeInteractive"
+        />
+      </head>
       <body className={dmSans.className}>
         <Providers>
           <WalletSync />
-          <ErrorBoundary level="page">
-            <TopNavbar />
-            <div className="pb-20 sm:pb-0">{children}</div>
-            <MobileBottomNav />
-            <WalletModal />
-            <Toaster />
-          </ErrorBoundary>
+          <LoadingProvider>
+            <LayoutContent>{children}</LayoutContent>
+          </LoadingProvider>
         </Providers>
       </body>
     </html>

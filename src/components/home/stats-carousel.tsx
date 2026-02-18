@@ -13,10 +13,19 @@ import { useStats } from "@/hooks";
 export function StatsCarousel() {
   const { data: stats, isLoading, error } = useStats();
 
-  if (error) {
+  // Show static skeletons for errors or no data
+  if (error || !stats || stats.length === 0) {
     return (
       <div className="w-full">
-        <p className="text-sm text-red-500">Failed to load stats</p>
+        <div className="flex gap-4 overflow-x-auto">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton
+              key={i}
+              className="h-40 w-85 rounded-xlg shrink-0"
+              isStatic
+            />
+          ))}
+        </div>
       </div>
     );
   }
@@ -31,10 +40,6 @@ export function StatsCarousel() {
         </div>
       </div>
     );
-  }
-
-  if (!stats || stats.length === 0) {
-    return null;
   }
 
   return (

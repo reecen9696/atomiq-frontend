@@ -11,13 +11,18 @@ export function useVaultBalance() {
   const { updateVaultInfo, user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Use local state as source of truth, not auth store
+  const [vaultBalance, setVaultBalance] = useState<number | null>(null);
+  const [vaultAddress, setVaultAddress] = useState<string>("");
+  const [hasVault, setHasVault] = useState(false);
 
   const fetchVaultBalance = useCallback(async () => {
     if (!publicKey) {
-      // Clear vault info in auth store when no wallet connected (only if different)
-      if (user?.vaultBalance !== 0 || user?.vaultAddress !== "") {
-        updateVaultInfo("", 0);
-      }
+      // Clear vault info when no wallet connected
+      setVaultBalance(null);
+      setVaultAddress("");
+      setHasVault(false);
+      updateVaultInfo("", 0);
       return;
     }
 
@@ -32,28 +37,29 @@ export function useVaultBalance() {
 
       if (vaultInfo.exists && vaultInfo.state) {
         const balance = Number(vaultInfo.state.solBalanceLamports || 0n) / 1e9;
-        // Only update auth store if balance or address changed
-        if (
-          user?.vaultBalance !== balance ||
-          user?.vaultAddress !== vaultInfo.address
-        ) {
-          updateVaultInfo(vaultInfo.address, balance);
-        }
+        // Update local state (source of truth for display)
+        setVaultBalance(balance);
+        setVaultAddress(vaultInfo.address);
+        setHasVault(true);
+        // Also update auth store for cross-component sync
+        updateVaultInfo(vaultInfo.address, balance);
       } else {
-        // No vault found - clear auth store (only if different)
-        if (user?.vaultBalance !== 0 || user?.vaultAddress !== "") {
-          updateVaultInfo("", 0);
-        }
+        // No vault found
+        setVaultBalance(0);
+        setVaultAddress("");
+        setHasVault(false);
+        updateVaultInfo("", 0);
       }
     } catch (err) {
       logger.error("Failed to fetch vault balance:", err);
       const errorMessage =
         (err as Error).message || "Failed to fetch vault balance";
       setError(errorMessage);
-      // Clear vault info on error (only if different)
-      if (user?.vaultBalance !== 0 || user?.vaultAddress !== "") {
-        updateVaultInfo("", 0);
-      }
+      // Default to 0 on error
+      setVaultBalance(0);
+      setVaultAddress("");
+      setHasVault(false);
+      updateVaultInfo("", 0);
     } finally {
       setLoading(false);
     }
@@ -66,19 +72,19 @@ export function useVaultBalance() {
 
   // Remove automatic polling - vault balance should only update on page load or manual refresh
 
-  // Method to update vault balance - now just updates auth store
+  // Method to update vault balance - updates both local state and auth store
   const updateLocalVaultBalance = useCallback(
     (newBalance: number) => {
-      const vaultAddress = user?.vaultAddress || "";
+      setVaultBalance(newBalance);
       updateVaultInfo(vaultAddress, newBalance);
     },
-    [updateVaultInfo, user?.vaultAddress],
+    [updateVaultInfo, vaultAddress],
   );
 
   return {
-    vaultBalance: user?.vaultBalance ?? null,
-    vaultAddress: user?.vaultAddress ?? "",
-    hasVault: user?.hasVault ?? false,
+    vaultBalance,
+    vaultAddress,
+    hasVault,
     loading,
     error,
     refresh: fetchVaultBalance,

@@ -6,6 +6,7 @@ import { handleQueryError } from "@/lib/error-handling";
 import { mockWinners } from "@/mocks";
 import { env } from "@/config/env";
 import { Winner } from "@/types/winner";
+import { toast } from "@/lib/toast";
 
 /**
  * Hook for fetching recent winners with direct WebSocket updates
@@ -20,6 +21,7 @@ export function useRecentWins(limit?: number) {
   const [isLive, setIsLive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const hasShownErrorToast = useRef(false);
 
   // Always fetch data via polling - this ensures we never return undefined
   const query = useQuery({
@@ -33,9 +35,14 @@ export function useRecentWins(limit?: number) {
         console.log("🎰 Fetching recent wins from API...");
         const response = await api.winners.getRecent(actualLimit);
         console.log("🎰 Recent wins response:", response.data);
+        hasShownErrorToast.current = false; // Reset on success
         return response.data || []; // Ensure we never return undefined
       } catch (error) {
         console.error("🎰 Winners API failed:", error);
+        if (!hasShownErrorToast.current) {
+          toast.error("Cannot connect to server", "Failed to load recent wins");
+          hasShownErrorToast.current = true;
+        }
         return []; // Return empty array instead of throwing to prevent undefined
       }
     },
@@ -87,14 +94,39 @@ export function useRecentWins(limit?: number) {
         ) {
           console.log("🎰 WebSocket wins: New win received", data);
 
+          // Map game types to their correct images
+          const gameType = (data.game_type || data.game || "unknown").toLowerCase();
+          let gameImage = "/games/coinflip.png"; // default
+          let gameName = "Unknown";
+
+          switch (gameType) {
+            case "coinflip":
+            case "coin_flip":
+              gameImage = "/games/coinflip.png";
+              gameName = "Coinflip";
+              break;
+            case "dice":
+              gameImage = "/games/dice.png";
+              gameName = "Dice";
+              break;
+            case "plinko":
+              gameImage = "/games/plinko.png";
+              gameName = "Plinko";
+              break;
+            case "slots":
+            case "slot":
+              gameImage = "/games/slot.png";
+              gameName = "Slots";
+              break;
+            default:
+              gameName = data.game_type || data.game || "Unknown";
+          }
+
           // Transform to our Winner format
           const newWin: Winner = {
             id: `win-${data.tx_id || data.id || "unknown"}-${crypto.randomUUID()}`, // Guaranteed unique ID
-            gameName:
-              data.game_type === "coinflip"
-                ? "Coin Flip"
-                : data.game_type || data.game || "Unknown",
-            gameImage: "/games/coinflip.png",
+            gameName,
+            gameImage,
             amount: `${(data.amount_won || data.amount || 0).toFixed(4)} ${data.currency || "SOL"}`,
             timestamp: new Date(
               (data.timestamp || Date.now()) * 1000,
