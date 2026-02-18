@@ -22,6 +22,7 @@ export function useVaultBalance() {
   const [isReconciling, setIsReconciling] = useState(false);
   const lastReconciledRef = useRef<number>(0);
   const reconciliationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconciliationFnRef = useRef<() => Promise<void>>();
 
   const fetchVaultBalance = useCallback(async () => {
     if (!publicKey) {
@@ -73,7 +74,8 @@ export function useVaultBalance() {
   }, [publicKey, updateVaultInfo]);
 
   // Reconciliation function - fetches on-chain balance and compares with optimistic balance
-  const reconcileBalance = useCallback(async () => {
+  // Using useRef to store this so the interval doesn't need to be recreated
+  reconciliationFnRef.current = async () => {
     // Skip if no public key, already loading, or recently reconciled
     if (!publicKey || loading) {
       return;
@@ -120,7 +122,14 @@ export function useVaultBalance() {
     } finally {
       setIsReconciling(false);
     }
-  }, [publicKey, loading, user?.vaultBalance, updateVaultInfo]);
+  };
+
+  // Wrapper function for manual refresh
+  const reconcileBalance = useCallback(async () => {
+    if (reconciliationFnRef.current) {
+      await reconciliationFnRef.current();
+    }
+  }, []);
 
   // Fetch vault balance on mount and when publicKey changes
   useEffect(() => {
@@ -138,49 +147,9 @@ export function useVaultBalance() {
       return;
     }
 
-    // Set up reconciliation interval - call reconcileBalance directly in the interval
+    // Set up reconciliation interval - uses the ref to avoid recreating interval
     reconciliationIntervalRef.current = setInterval(() => {
-      // Skip if already loading or recently reconciled
-      if (loading) return;
-
-      const now = Date.now();
-      if (now - lastReconciledRef.current < RECONCILIATION_INTERVAL) return;
-
-      setIsReconciling(true);
-      lastReconciledRef.current = now;
-
-      // Perform reconciliation
-      solanaService
-        .getUserVaultInfo({
-          user: publicKey,
-          connection: solanaService.getConnection(),
-        })
-        .then((vaultInfo) => {
-          if (vaultInfo.exists && vaultInfo.state) {
-            const onChainBalance =
-              Number(vaultInfo.state.solBalanceLamports || 0n) / 1e9;
-            const currentOptimisticBalance = user?.vaultBalance || 0;
-
-            const drift = Math.abs(onChainBalance - currentOptimisticBalance);
-            if (drift > BALANCE_DRIFT_THRESHOLD) {
-              logger.info(
-                `Balance drift detected: ${drift.toFixed(4)} SOL. Reconciling...`,
-              );
-              logger.info(
-                `On-chain: ${onChainBalance.toFixed(4)} SOL, Optimistic: ${currentOptimisticBalance.toFixed(4)} SOL`,
-              );
-
-              setVaultBalance(onChainBalance);
-              updateVaultInfo(vaultInfo.address, onChainBalance);
-            }
-          }
-        })
-        .catch((err) => {
-          logger.error("Failed to reconcile balance:", err);
-        })
-        .finally(() => {
-          setIsReconciling(false);
-        });
+      reconciliationFnRef.current?.();
     }, RECONCILIATION_INTERVAL);
 
     // Cleanup on unmount
@@ -190,8 +159,7 @@ export function useVaultBalance() {
         reconciliationIntervalRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publicKey, hasVault]); // Only recreate when publicKey or hasVault changes
+  }, [publicKey, hasVault]);
 
   // Method to update vault balance - updates both local state and auth store
   const updateLocalVaultBalance = useCallback(
