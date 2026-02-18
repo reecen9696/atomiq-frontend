@@ -23,6 +23,7 @@ export function useVaultBalance() {
   const lastReconciledRef = useRef<number>(0);
   const reconciliationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconciliationFnRef = useRef<() => Promise<void>>();
+  const reconcilingInProgressRef = useRef<boolean>(false);
 
   const fetchVaultBalance = useCallback(async () => {
     if (!publicKey) {
@@ -81,12 +82,18 @@ export function useVaultBalance() {
       return;
     }
 
+    // Prevent concurrent reconciliation attempts
+    if (reconcilingInProgressRef.current) {
+      return;
+    }
+
     const now = Date.now();
     // Avoid excessive RPC calls - respect minimum interval
     if (now - lastReconciledRef.current < RECONCILIATION_INTERVAL) {
       return;
     }
 
+    reconcilingInProgressRef.current = true;
     setIsReconciling(true);
     lastReconciledRef.current = now;
 
@@ -120,6 +127,7 @@ export function useVaultBalance() {
       logger.error("Failed to reconcile balance:", err);
       // Don't update error state - this is a background operation
     } finally {
+      reconcilingInProgressRef.current = false;
       setIsReconciling(false);
     }
   };
@@ -178,6 +186,7 @@ export function useVaultBalance() {
     error,
     isReconciling,
     refresh: fetchVaultBalance,
+    reconcile: reconcileBalance,
     updateLocalVaultBalance,
   };
 }

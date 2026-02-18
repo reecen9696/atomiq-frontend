@@ -32,7 +32,7 @@ export function TopNavbar() {
     hasVault,
     loading: vaultLoading,
     isReconciling,
-    refresh: refreshVaultBalance,
+    reconcile: reconcileVaultBalance,
   } = useVaultBalance();
   const { pendingBets } = useBetTrackingStore();
 
@@ -139,8 +139,8 @@ export function TopNavbar() {
                 </div>
                 {/* Sync indicator and refresh button */}
                 <button
-                  onClick={refreshVaultBalance}
-                  disabled={vaultLoading}
+                  onClick={reconcileVaultBalance}
+                  disabled={vaultLoading || isReconciling}
                   className="flex items-center justify-center w-[40px] h-[48px] border border-[#1E2938] hover:border-[#5C41E1] hover:bg-white/10 rounded-sm transition-all duration-200 disabled:opacity-50"
                   title="Refresh balance"
                 >
