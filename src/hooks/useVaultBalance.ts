@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { solanaService } from "@/services/solana";
 import { logger } from "@/lib/logger";
+
+// Reconciliation configuration
+const RECONCILIATION_INTERVAL = 30000; // 30 seconds
+const BALANCE_DRIFT_THRESHOLD = 0.001; // 0.001 SOL (~$0.10 at current prices)
 
 export function useVaultBalance() {
   const { publicKey } = useWallet();
@@ -15,6 +19,9 @@ export function useVaultBalance() {
   const [vaultBalance, setVaultBalance] = useState<number | null>(null);
   const [vaultAddress, setVaultAddress] = useState<string>("");
   const [hasVault, setHasVault] = useState(false);
+  const [isReconciling, setIsReconciling] = useState(false);
+  const lastReconciledRef = useRef<number>(0);
+  const reconciliationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchVaultBalance = useCallback(async () => {
     if (!publicKey) {
@@ -65,12 +72,85 @@ export function useVaultBalance() {
     }
   }, [publicKey, updateVaultInfo]);
 
+  // Reconciliation function - fetches on-chain balance and compares with optimistic balance
+  const reconcileBalance = useCallback(async () => {
+    // Skip if no public key, already loading, or recently reconciled
+    if (!publicKey || loading) {
+      return;
+    }
+
+    const now = Date.now();
+    // Avoid excessive RPC calls - respect minimum interval
+    if (now - lastReconciledRef.current < RECONCILIATION_INTERVAL) {
+      return;
+    }
+
+    setIsReconciling(true);
+    lastReconciledRef.current = now;
+
+    try {
+      const vaultInfo = await solanaService.getUserVaultInfo({
+        user: publicKey,
+        connection: solanaService.getConnection(),
+      });
+
+      if (vaultInfo.exists && vaultInfo.state) {
+        const onChainBalance =
+          Number(vaultInfo.state.solBalanceLamports || 0n) / 1e9;
+        const currentOptimisticBalance = user?.vaultBalance || 0;
+
+        // Check if balances have drifted beyond threshold
+        const drift = Math.abs(onChainBalance - currentOptimisticBalance);
+        if (drift > BALANCE_DRIFT_THRESHOLD) {
+          logger.info(
+            `Balance drift detected: ${drift.toFixed(4)} SOL. Reconciling...`,
+          );
+          logger.info(
+            `On-chain: ${onChainBalance.toFixed(4)} SOL, Optimistic: ${currentOptimisticBalance.toFixed(4)} SOL`,
+          );
+
+          // Update to on-chain value
+          setVaultBalance(onChainBalance);
+          updateVaultInfo(vaultInfo.address, onChainBalance);
+        }
+      }
+    } catch (err) {
+      logger.error("Failed to reconcile balance:", err);
+      // Don't update error state - this is a background operation
+    } finally {
+      setIsReconciling(false);
+    }
+  }, [publicKey, loading, user?.vaultBalance, updateVaultInfo]);
+
   // Fetch vault balance on mount and when publicKey changes
   useEffect(() => {
     fetchVaultBalance();
   }, [fetchVaultBalance]);
 
-  // Remove automatic polling - vault balance should only update on page load or manual refresh
+  // Set up periodic balance reconciliation
+  useEffect(() => {
+    if (!publicKey || !hasVault) {
+      // Clear interval if no wallet connected or no vault
+      if (reconciliationIntervalRef.current) {
+        clearInterval(reconciliationIntervalRef.current);
+        reconciliationIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Set up reconciliation interval
+    reconciliationIntervalRef.current = setInterval(() => {
+      reconcileBalance();
+    }, RECONCILIATION_INTERVAL);
+
+    // Cleanup on unmount
+    return () => {
+      if (reconciliationIntervalRef.current) {
+        clearInterval(reconciliationIntervalRef.current);
+        reconciliationIntervalRef.current = null;
+      }
+    };
+  }, [publicKey, hasVault, reconcileBalance]);
 
   // Method to update vault balance - updates both local state and auth store
   const updateLocalVaultBalance = useCallback(
@@ -87,6 +167,7 @@ export function useVaultBalance() {
     hasVault,
     loading,
     error,
+    isReconciling,
     refresh: fetchVaultBalance,
     updateLocalVaultBalance,
   };
