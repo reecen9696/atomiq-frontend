@@ -13,13 +13,13 @@ import { makeStyles } from "@mui/styles";
 import { Theme } from "@mui/material/styles";
 import { useEffect, useState, useRef, useCallback } from "react";
 import clsx from "clsx";
-import axios from "axios";
 import useSound from "use-sound";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
 import { toast } from "@/lib/toast";
+import { gameApiClient, validateBet } from "@/lib/security";
 import { SlotApp } from "./SlotApp";
 import { TOTAL_LINES, BET_TYPE } from "./data/constants";
 
@@ -350,6 +350,14 @@ const Slots: React.FC = () => {
       return;
     }
 
+    // Client-side validation before API call
+    const betCheck = validateBet(betAmount, "slot");
+    if (!betCheck.valid) {
+      toast.error("Invalid bet", betCheck.error || "Check your bet amount");
+      setPlayLoading(false);
+      return;
+    }
+
     const request = {
       player_id: publicKey.toBase58(),
       player_address: publicKey.toBase58(),
@@ -363,13 +371,18 @@ const Slots: React.FC = () => {
     };
 
     try {
-      const response = await axios.post(
-        `${Config.Root.blockchainApiUrl}/api/slot/play`,
-        request,
-      );
+      const result = await gameApiClient.slot.play(request);
 
-      if (response.data.status === "complete" && response.data.result) {
-        const result = response.data.result;
+      if (!result.success) {
+        toast.error("Bet failed", result.error || "Unknown error");
+        setPlayLoading(false);
+        return;
+      }
+
+      const responseData = result.data as any;
+
+      if ((responseData?.status === "complete" || responseData?.result) && responseData?.result) {
+        const result = responseData.result;
         const gameData = result.game_data || result;
 
         const fairResult = gameData.grid; // 3×5 grid of symbols
@@ -396,11 +409,12 @@ const Slots: React.FC = () => {
         setPlayLoading(false);
         console.error(
           "Slot bet failed:",
-          response.data.error || "Unknown error",
+          responseData?.error || "Unknown error",
         );
       }
     } catch (error: any) {
       console.error("Slot error:", error);
+      toast.error("Bet failed", error.message || "An unexpected error occurred");
       setPlayLoading(false);
     }
   }, [

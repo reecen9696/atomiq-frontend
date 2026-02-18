@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -50,15 +53,21 @@
     "@eslint/js": "latest",
     "@next/eslint-plugin-next": "latest",
     "@tailwindcss/postcss": "latest",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "^5.1.4",
     "eslint": "latest",
     "eslint-config-next": "latest",
+    "jsdom": "^28.1.0",
     "postcss": "latest",
     "tailwindcss": "latest",
     "tailwindcss-animate": "latest",
     "typescript": "latest",
-    "typescript-eslint": "latest"
+    "typescript-eslint": "latest",
+    "vitest": "^4.0.18"
   }
 }

@@ -6,13 +6,13 @@ import clsx from "clsx";
 import { useEffect, useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import useSound from "use-sound";
-import axios from "axios";
 import { Theme } from "@mui/material/styles";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
 import { toast } from "@/lib/toast";
+import { gameApiClient, validateBet } from "@/lib/security";
 
 import DiceL from "./utils/DiceL";
 import DiceR from "./utils/DiceR";
@@ -715,41 +715,43 @@ const Dice: React.FC = () => {
         allowance_nonce: playSession.nonce,
       };
 
-      const apiUrl = `${Config.Root.blockchainApiUrl}/api/dice/play`;
+      // Client-side validation before API call
+      const betCheck = validateBet(betAmount, "dice");
+      if (!betCheck.valid) {
+        toast.error("Invalid bet", betCheck.error || "Check your bet amount");
+        setPlayLoading(false);
+        return;
+      }
 
-      console.log("📤 Sending HTTP request to:", apiUrl);
-      console.log("📦 Request data:", JSON.stringify(requestData, null, 2));
+      console.log("📤 Sending dice play request");
 
-      const response = await axios.post(apiUrl, requestData);
-      console.log("✅ HTTP Response received:", response.data);
-      console.log("📊 Game Result:", {
-        game_id: response.data.result?.game_id,
-        roll: response.data.result?.roll,
-        target: response.data.result?.target,
-        condition: response.data.result?.condition,
-        outcome: response.data.result?.outcome,
-        bet_amount: response.data.result?.payment?.bet_amount,
-        payout_amount: response.data.result?.payment?.payout_amount,
+      const result = await gameApiClient.dice.play({
+        ...requestData,
+        target_number: requestData.target,
+        bet_type: requestData.condition,
       });
 
-      if (response.data.status === "complete" && response.data.result) {
-        setBetResponse(response.data.result);
+      if (!result.success) {
+        console.error("❌ Dice play error:", result.error);
+        toast.error("Bet failed", result.error || "Unknown error");
+        setPlayLoading(false);
+        return;
+      }
+
+      const responseData = result.data as any;
+      console.log("✅ Dice response received:", responseData);
+
+      if (responseData?.status === "complete" && responseData?.result) {
+        setBetResponse(responseData.result);
+      } else if (responseData?.result) {
+        setBetResponse(responseData.result);
       } else {
-        console.error("❌ Invalid response format:", response.data);
+        console.error("❌ Invalid response format:", responseData);
         throw new Error("Invalid response from server");
       }
     } catch (error: any) {
       console.error("❌ Dice play error:", error);
-      console.error("❌ Error details:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        url: `${Config.Root.blockchainApiUrl}/api/dice/play`,
-      });
-      console.error(
-        "Failed to play dice:",
-        error.response?.data || error.message,
-      );
+      toast.error("Bet failed", error.message || "An unexpected error occurred");
       setPlayLoading(false);
     }
   };

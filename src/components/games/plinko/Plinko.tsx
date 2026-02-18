@@ -13,13 +13,13 @@ import { makeStyles } from "@mui/styles";
 import Sketch from "react-p5";
 import Matter from "matter-js";
 import clsx from "clsx";
-import axios from "axios";
 import useSound from "use-sound";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAtomikAllowance } from "@/components/providers/sdk-provider";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks";
 import { toast } from "@/lib/toast";
+import { gameApiClient, validateBet } from "@/lib/security";
 // Configuration - using blockchain API
 const Config = {
   Root: {
@@ -724,41 +724,52 @@ const Plinko = () => {
         allowance_nonce: playSession.nonce,
       };
 
+      // Client-side validation before API call
+      const betCheck = validateBet(betAmount, "plinko");
+      if (!betCheck.valid) {
+        toast.error("Invalid bet", betCheck.error || "Check your bet amount");
+        setPlayLoading(false);
+        return;
+      }
+
       console.log("📤 Plinko request:", requestData);
 
-      const response = await axios.post(
-        `${Config.Root.blockchainApiUrl}/api/plinko/play`,
-        requestData,
-      );
+      const result = await gameApiClient.plinko.play({
+        ...requestData,
+        risk_level: requestData.risk,
+      });
 
-      console.log("✅ Plinko response:", response.data);
+      if (!result.success) {
+        console.error("❌ Plinko play error:", result.error);
+        toast.error("Bet failed", result.error || "Unknown error");
+        setPlayLoading(false);
+        return;
+      }
 
-      if (response.data && response.data.status === "complete") {
-        setBetResponse(response.data);
+      const responseData = result.data as any;
+      console.log("✅ Plinko response:", responseData);
+
+      if (responseData && (responseData.status === "complete" || responseData.result)) {
+        setBetResponse(responseData);
 
         // Update vault balance using atomic method with server-authoritative values
-        const won = response.data.result.outcome === "win";
-        const serverBetAmount = response.data.result.payment?.bet_amount || betAmount;
-        const payout = response.data.result.payment?.payout_amount || (won ? betAmount * response.data.result.multiplier : 0);
+        const won = responseData.result.outcome === "win";
+        const serverBetAmount = responseData.result.payment?.bet_amount || betAmount;
+        const payout = responseData.result.payment?.payout_amount || (won ? betAmount * responseData.result.multiplier : 0);
 
         const { processBetOutcome } = useAuthStore.getState();
         processBetOutcome(serverBetAmount, won, payout);
 
         // Drop ball - allow immediate next bet
-        dropBall(response.data.result.bucket);
+        dropBall(responseData.result.bucket);
         setPlayLoading(false);
       } else {
-        console.error("❌ Invalid response format:", response.data);
+        console.error("❌ Invalid response format:", responseData);
         setPlayLoading(false);
       }
     } catch (error: any) {
       console.error("❌ Plinko bet error:", error);
-      console.error("❌ Error details:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        url: `${Config.Root.blockchainApiUrl}/api/plinko/play`,
-      });
+      toast.error("Bet failed", error.message || "An unexpected error occurred");
       setPlayLoading(false);
     }
   };
