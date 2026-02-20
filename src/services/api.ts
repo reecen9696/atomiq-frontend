@@ -157,7 +157,7 @@ export const api = {
       
       // Transform games to winners format, filtering only wins
       const winners = gamesResponse.games
-        .filter((game: any) => game.outcome === "win")
+        .filter((game: any) => game.outcome === "win" && game.solana_tx_id)
         .slice(0, limit) // Take only the requested limit after filtering
         .map((game: any) => {
           // Map game types to proper display names
