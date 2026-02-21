@@ -229,9 +229,9 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
       setIsCreatingNew(true);
       logger.transaction("allowance-create-new", { status: "starting" });
 
-      // Create an allowance for 5,000 SOL that expires in 30 days
-      const allowanceAmount = BigInt(5000 * 1_000_000_000); // 5,000 SOL in lamports
-      const durationSeconds = BigInt(2592000); // 30 days
+      // Create an allowance for 100 SOL that expires in 7 days
+      const allowanceAmount = BigInt(100 * 1_000_000_000); // 100 SOL in lamports
+      const durationSeconds = BigInt(604800); // 7 days
 
       const { signature, allowancePda, usedNonce } =
         await solanaService.approveAllowanceSol({
@@ -309,8 +309,8 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
     }
 
     try {
-      // Extend current allowance for another 30 days with an additional 5,000 SOL
-      const result = await allowanceHook.extend(2592000, 5000);
+      // Extend current allowance for another 7 days with an additional 100 SOL
+      const result = await allowanceHook.extend(604800, 100);
 
       if (result) {
         logger.transaction("allowance-extend", {
