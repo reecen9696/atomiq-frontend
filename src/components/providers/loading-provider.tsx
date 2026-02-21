@@ -32,15 +32,6 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
   const { isLoading: blocksLoading } = useRecentBlocks();
   const { isLoading: statsLoading } = useStats();
 
-  // Safety valve: force-dismiss loading overlay after 8 seconds regardless
-  // Prevents infinite loading when backend/RPC is unreachable
-  useEffect(() => {
-    const maxTimeout = setTimeout(() => {
-      setIsInitialLoading(false);
-    }, 8000);
-    return () => clearTimeout(maxTimeout);
-  }, []);
-
   useEffect(() => {
     // Wait for:
     // 1. All data to load (wins, blocks, stats)
