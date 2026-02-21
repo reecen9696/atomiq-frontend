@@ -22,20 +22,6 @@ export {
 } from "./utils";
 
 // Validation utilities
-export {
-  emailSchema,
-  passwordSchema,
-  walletAddressSchema,
-  amountSchema,
-  isValidEmail,
-  isValidWalletAddress,
-  isValidAmount,
-  validateForm,
-  sanitizeHtml,
-  sanitizeInput,
-  type ValidationResult,
-} from "./validation";
-
 // Error handling
 export {
   AppError,
