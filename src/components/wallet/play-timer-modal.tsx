@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAllowanceForCasino } from "@/lib/sdk/hooks/useAllowance";
 import { createAllowanceService } from "@/lib/sdk/allowance/service";
@@ -18,8 +18,9 @@ const CLOSE_BUTTON_SVG_PATH = "M6 6l12 12M6 18L18 6";
 
 export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
   const { publicKey, sendTransaction, signTransaction } = useWallet();
-  const allowanceService = createAllowanceService(
-    solanaService.getConnection(),
+  const allowanceService = useMemo(
+    () => createAllowanceService(solanaService.getConnection()),
+    [],
   );
   const allowanceHook = useAllowanceForCasino(
     publicKey?.toBase58() || null,
