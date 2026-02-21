@@ -270,8 +270,22 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
       );
     } catch (error) {
       logger.error("❌ Failed to create new session", error);
-      const errorMsg =
+      let errorMsg =
         error instanceof Error ? error.message : "Failed to create session";
+      
+      // Provide user-friendly messages for common errors
+      if (errorMsg.includes("already in use") || errorMsg.includes("0x0")) {
+        errorMsg = "This allowance nonce was already used. Please try again — the nonce will auto-increment.";
+      } else if (errorMsg.includes("insufficient funds") || errorMsg.includes("0x1")) {
+        errorMsg = "Insufficient SOL in wallet for transaction fees. Please add some devnet SOL.";
+      } else if (errorMsg.includes("cancelled") || errorMsg.includes("rejected")) {
+        errorMsg = "Transaction was cancelled.";
+      } else if (errorMsg.includes("CasinoPaused")) {
+        errorMsg = "The casino is currently paused. Please try again later.";
+      } else if (errorMsg.includes("Unexpected error")) {
+        errorMsg = "Transaction failed — the Solana network may be congested. Please try again in a moment.";
+      }
+      
       toast.error("Session creation failed", errorMsg);
     } finally {
       setIsCreatingNew(false);

@@ -765,6 +765,39 @@ export class SolanaService {
     );
     tx.recentBlockhash = latestBlockhash.blockhash;
 
+    // Simulate first to get the actual Solana program error (instead of opaque
+    // "WalletSendTransactionError: Unexpected error" from wallet adapters).
+    try {
+      const simResult = await connection.simulateTransaction(tx);
+      if (simResult.value.err) {
+        const simLogs = simResult.value.logs ?? [];
+        const errorCode = extractCustomProgramErrorCode({ simErr: simResult.value.err });
+        const logSnippet = simLogs.slice(-8).join("\n");
+        logger.error("❌ Transaction simulation failed", {
+          err: JSON.stringify(simResult.value.err),
+          errorCode,
+          logs: logSnippet,
+        });
+        throw new Error(
+          `Transaction simulation failed: ${JSON.stringify(simResult.value.err)}` +
+          (errorCode != null ? ` (program error code: ${errorCode})` : "") +
+          `\nLogs:\n${logSnippet}`
+        );
+      }
+      logger.debug("✅ Simulation passed", { unitsConsumed: simResult.value.unitsConsumed });
+    } catch (simErr) {
+      // If it's already our formatted error, re-throw
+      if (simErr instanceof Error && simErr.message.startsWith("Transaction simulation failed"))
+        throw simErr;
+      // If user cancelled, propagate
+      if (isUserRejectedError(simErr))
+        throw new Error("User cancelled allowance approval");
+      // Otherwise log and continue — simulation might fail on unsigned tx but real send might work
+      logger.warn("⚠️ Pre-flight simulation error (may be expected for unsigned tx)", {
+        error: simErr instanceof Error ? simErr.message : String(simErr),
+      });
+    }
+
     // If signTransaction is available, use the more reliable sign-then-send path
     if (params.signTransaction) {
       try {
@@ -783,8 +816,21 @@ export class SolanaService {
         // If user rejected, propagate immediately
         if (isUserRejectedError(signErr))
           throw new Error("User cancelled allowance approval");
-        // Otherwise fall through to sendTransaction path
-        logger.warn("signTransaction path failed, trying sendTransaction", { error: signErr instanceof Error ? signErr.message : String(signErr) });
+        // If it's a real program/simulation error, propagate it — don't hide
+        // it behind the wallet adapter's opaque "Unexpected error"
+        const signErrMsg = signErr instanceof Error ? signErr.message : String(signErr);
+        if (
+          signErrMsg.includes("Transaction simulation failed") ||
+          signErrMsg.includes("custom program error") ||
+          signErrMsg.includes("InstructionError") ||
+          signErrMsg.includes("already in use") ||
+          signErrMsg.includes("insufficient funds")
+        ) {
+          logger.error("❌ signTransaction failed with program error — not retrying via sendTransaction", { error: signErrMsg });
+          throw signErr;
+        }
+        // For transient/network errors, fall through to sendTransaction path
+        logger.warn("signTransaction path failed, trying sendTransaction", { error: signErrMsg });
       }
     }
 
