@@ -21,6 +21,7 @@ import { useAllowanceForCasino } from "@/lib/sdk/hooks";
 import { toast } from "@/lib/toast";
 import { gameApiClient, validateBet } from "@/lib/security";
 import { useBetGuard } from "@/hooks/useBetGuard";
+import { useBetCooldown } from "@/hooks/useBetCooldown";
 import type { BetGuardHandle } from "@/hooks/useBetGuard";
 // Configuration - using blockchain API
 const Config = {
@@ -318,6 +319,9 @@ const Plinko = () => {
 
   // Bet guard — prevents over-betting by immediately deducting from optimistic balance
   const { guardBet } = useBetGuard();
+
+  // Bet cooldown — 500ms minimum between bets to avoid hitting rate limits
+  const { canBet, recordBet, cooldownActive } = useBetCooldown(500);
 
   // Game state
   const [betType, setBetType] = useState<BET_TYPE>(BET_TYPE.manual);
@@ -683,6 +687,10 @@ const Plinko = () => {
       openWalletModal();
       return;
     }
+
+    // Enforce minimum 500ms between bets
+    if (!canBet()) return;
+    recordBet();
 
     if (!user.vaultAddress) {
       console.error("No vault address found");
@@ -1112,7 +1120,7 @@ const Plinko = () => {
               <Button
                 className={classes.BetButton}
                 onClick={handleBet}
-                disabled={playLoading || !isConnected}
+                disabled={playLoading || !isConnected || cooldownActive}
                 sx={{
                   color: "#FFFFFF !important",
                   "& .MuiButton-label": { color: "#FFFFFF !important" },

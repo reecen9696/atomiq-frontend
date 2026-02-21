@@ -21,6 +21,7 @@ import { useAllowanceForCasino } from "@/lib/sdk/hooks";
 import { toast } from "@/lib/toast";
 import { gameApiClient, validateBet } from "@/lib/security";
 import { useBetGuard } from "@/hooks/useBetGuard";
+import { useBetCooldown } from "@/hooks/useBetCooldown";
 import { SlotApp } from "./SlotApp";
 import { TOTAL_LINES, BET_TYPE } from "./data/constants";
 
@@ -293,6 +294,9 @@ const Slots: React.FC = () => {
   // Bet guard — prevents over-betting by immediately deducting from optimistic balance
   const { guardBet } = useBetGuard();
 
+  // Bet cooldown — 500ms minimum between bets to avoid hitting rate limits
+  const { canBet, recordBet, cooldownActive } = useBetCooldown(500);
+
   const setting = { min: 1, max: 1000 };
   const [betType, setBetType] = useState<number>(BET_TYPE.manual);
   const [playLoading, setPlayLoading] = useState(false);
@@ -528,6 +532,10 @@ const Slots: React.FC = () => {
       openWalletModal();
       return;
     }
+
+    // Enforce minimum 500ms between bets
+    if (!canBet()) return;
+    recordBet();
 
     if (!signMessage) {
       console.error("Wallet does not support message signing");

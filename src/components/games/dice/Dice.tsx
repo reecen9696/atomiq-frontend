@@ -14,6 +14,7 @@ import { useAllowanceForCasino } from "@/lib/sdk/hooks";
 import { toast } from "@/lib/toast";
 import { gameApiClient, validateBet } from "@/lib/security";
 import { useBetGuard } from "@/hooks/useBetGuard";
+import { useBetCooldown } from "@/hooks/useBetCooldown";
 
 import DiceL from "./utils/DiceL";
 import DiceR from "./utils/DiceR";
@@ -457,6 +458,9 @@ const Dice: React.FC = () => {
   // Bet guard — prevents over-betting by immediately deducting from optimistic balance
   const { guardBet } = useBetGuard();
 
+  // Bet cooldown — 500ms minimum between bets to avoid hitting rate limits
+  const { canBet, recordBet, cooldownActive } = useBetCooldown(500);
+
   // Replace mock data with actual wallet/auth data
   const authData = {
     isAuth: isConnected && publicKey && user,
@@ -629,6 +633,12 @@ const Dice: React.FC = () => {
 
   const handlePlay = async () => {
     console.log("🎲 DICE PLAY BUTTON CLICKED!");
+
+    // Enforce minimum 500ms between bets to avoid rate limits
+    if (!canBet()) {
+      return; // Silently ignore — button will re-enable shortly
+    }
+    recordBet();
 
     if (!isConnected || !publicKey) {
       console.log("❌ Wallet not connected");
@@ -868,7 +878,7 @@ const Dice: React.FC = () => {
             </Box>
             <Box className={classes.SubBox}>
               <Button
-                disabled={playLoading}
+                disabled={playLoading || cooldownActive}
                 className={classes.PlayButton}
                 onClick={handlePlay}
               >

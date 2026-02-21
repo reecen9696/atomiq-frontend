@@ -13,6 +13,7 @@ import { bettingToast, toast } from "@/lib/toast";
 import { useBetTrackingStore } from "@/stores/bet-tracking-store";
 import { useSettlementErrors } from "@/hooks/useSettlementErrors";
 import { useBetGuard } from "@/hooks/useBetGuard";
+import { useBetCooldown } from "@/hooks/useBetCooldown";
 import type { BetGuardHandle } from "@/hooks/useBetGuard";
 
 export function CoinflipGame() {
@@ -32,6 +33,9 @@ export function CoinflipGame() {
   // Bet guard — prevents over-betting by immediately deducting from optimistic balance
   const { guardBet } = useBetGuard();
   const activeGuardRef = useRef<BetGuardHandle | null>(null);
+
+  // Bet cooldown — 500ms minimum between bets to avoid hitting rate limits
+  const { canBet, recordBet, cooldownActive } = useBetCooldown(500);
 
   // Initialize settlement error handling
   useSettlementErrors();
@@ -134,6 +138,10 @@ export function CoinflipGame() {
       openWalletModal();
       return;
     }
+
+    // Enforce minimum 500ms between bets
+    if (!canBet()) return;
+    recordBet();
 
     if (!selectedSide) {
       toast.warning("Select heads or tails", "Choose a side to bet on");
@@ -319,7 +327,7 @@ export function CoinflipGame() {
       {/* Place Bet Button */}
       <button
         onClick={handleBetClick}
-        disabled={!isConnected && !selectedSide}
+        disabled={(!isConnected && !selectedSide) || cooldownActive}
         className="w-full max-w-md py-4 bg-[#674AE5] hover:bg-[#8B75F6] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {!isConnected
