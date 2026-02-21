@@ -95,7 +95,11 @@ export function useRecentWins(limit?: number) {
           console.log("🎰 WebSocket wins: New win received", data);
 
           // Map game types to their correct images
-          const gameType = (data.game_type || data.game || "unknown").toLowerCase();
+          const gameType = (
+            data.game_type ||
+            data.game ||
+            "unknown"
+          ).toLowerCase();
           let gameImage = "/games/coinflip.png"; // default
           let gameName = "Unknown";
 

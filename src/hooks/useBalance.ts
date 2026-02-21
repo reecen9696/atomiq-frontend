@@ -75,7 +75,7 @@ export function useBalance() {
     } finally {
       setLoading(false);
     }
-  }, [publicKey, connection, updateBalance]);
+  }, [publicKey, connection, updateBalance, setRpcAvailable, rpcAvailable]);
 
   // Fetch balance on mount and when publicKey changes
   useEffect(() => {
