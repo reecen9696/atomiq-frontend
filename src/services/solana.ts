@@ -758,6 +758,36 @@ export class SolanaService {
     addPriorityFeeInstructions(tx, 50000); // Higher priority fee for allowance transactions
     tx.feePayer = params.user;
 
+    // Explicitly set blockhash — wallet adapters sometimes fail to do this,
+    // causing "Unexpected error" from sendTransaction on devnet.
+    const latestBlockhash = await withRateLimitRetry(() =>
+      connection.getLatestBlockhash("confirmed"),
+    );
+    tx.recentBlockhash = latestBlockhash.blockhash;
+
+    // If signTransaction is available, use the more reliable sign-then-send path
+    if (params.signTransaction) {
+      try {
+        const signature = await signSendAndConfirm(
+          connection,
+          params.signTransaction,
+          tx,
+        );
+        logger.transaction("allowance_approved", { signature, emoji: "✅" });
+        return {
+          signature,
+          allowancePda: allowancePda.toBase58(),
+          usedNonce: nonce,
+        };
+      } catch (signErr) {
+        // If user rejected, propagate immediately
+        if (isUserRejectedError(signErr))
+          throw new Error("User cancelled allowance approval");
+        // Otherwise fall through to sendTransaction path
+        logger.warn("signTransaction path failed, trying sendTransaction", { error: signErr instanceof Error ? signErr.message : String(signErr) });
+      }
+    }
+
     logger.transaction("transaction_prepared", {
       totalInstructions: tx.instructions.length,
       feePayer: params.user.toBase58(),

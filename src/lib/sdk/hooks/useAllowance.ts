@@ -410,10 +410,10 @@ export function useAllowance(
       allowancePda: string;
       usedNonce: number;
     } | null> => {
-      if (!userPublicKey || !sendTransaction || !signTransaction) {
+      if (!userPublicKey || !sendTransaction) {
         setState((prev) => ({
           ...prev,
-          error: "Missing required parameters for extension",
+          error: "Wallet not connected — please connect your wallet",
         }));
         return null;
       }

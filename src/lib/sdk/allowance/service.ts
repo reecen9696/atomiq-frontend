@@ -80,7 +80,7 @@ export interface AllowanceOperations {
     additionalDuration: number;
     amount?: number; // Optional amount to fund the new allowance
     sendTransaction: SendTransactionFn;
-    signTransaction: SignTransactionFn;
+    signTransaction?: SignTransactionFn;
     connection?: Connection;
   }): Promise<{
     signature: string;
@@ -206,7 +206,7 @@ export class AtomikAllowanceService implements AllowanceOperations {
     amount: number;
     duration?: number;
     sendTransaction: SendTransactionFn;
-    signTransaction: SignTransactionFn;
+    signTransaction?: SignTransactionFn;
     connection?: Connection;
   }): Promise<{
     signature: string;
@@ -291,7 +291,7 @@ export class AtomikAllowanceService implements AllowanceOperations {
     additionalDuration: number;
     amount?: number; // Optional amount to fund the new allowance
     sendTransaction: SendTransactionFn;
-    signTransaction: SignTransactionFn;
+    signTransaction?: SignTransactionFn;
     connection?: Connection;
   }): Promise<{
     signature: string;
