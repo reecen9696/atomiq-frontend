@@ -325,7 +325,22 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
           "Your play session has been extended successfully",
         );
       } else {
-        logger.error("Failed to extend session - no result returned");
+        // extend() returns null when it catches an error internally.
+        // The actual error message is stored in allowanceHook state.
+        const hookError = allowanceHook.error;
+        let errorMsg = hookError || "Failed to extend session";
+        
+        // Provide user-friendly messages for common errors
+        if (errorMsg.includes("simulation failed") || errorMsg.includes("Unexpected error")) {
+          errorMsg = "Transaction failed — the Solana network may be congested or the vault doesn't exist yet. Try creating a new session instead.";
+        } else if (errorMsg.includes("already in use")) {
+          errorMsg = "This allowance already exists. Try creating a new session instead.";
+        } else if (errorMsg.includes("insufficient funds")) {
+          errorMsg = "Insufficient SOL for transaction fees. Please add devnet SOL.";
+        }
+        
+        logger.error("Failed to extend session", { hookError });
+        toast.error("Extension failed", errorMsg);
       }
     } catch (error) {
       logger.error("❌ Failed to extend session", error);

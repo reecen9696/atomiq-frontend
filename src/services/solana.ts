@@ -684,6 +684,42 @@ export class SolanaService {
       params.user.toBase58(),
     );
 
+    // Auto-initialize the user vault if it doesn't exist yet.
+    // The Anchor program requires the vault account to already be initialized
+    // before approve_allowance_v2 can run (it reads vault.bump and vault.owner).
+    const vaultExists = await this.getAccountExists(vaultPda, connection);
+    if (!vaultExists) {
+      logger.info("🏗️ User vault not found — initializing automatically", {
+        vaultPda,
+        user: params.user.toBase58(),
+      });
+      try {
+        const initResult = await this.initializeUserVault({
+          user: params.user,
+          sendTransaction: params.sendTransaction,
+          signTransaction: params.signTransaction,
+          connection,
+        });
+        logger.transaction("vault_initialized", {
+          signature: initResult.signature,
+          vaultPda: initResult.vaultPda,
+        });
+        // Small delay for RPC propagation
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      } catch (vaultErr) {
+        if (isUserRejectedError(vaultErr))
+          throw new Error("User cancelled vault initialization");
+        // If vault was already initialized concurrently, that's fine
+        const vaultErrMsg = vaultErr instanceof Error ? vaultErr.message : String(vaultErr);
+        if (vaultErrMsg.includes("already in use")) {
+          logger.info("Vault already exists (concurrent init) — continuing");
+        } else {
+          logger.error("❌ Failed to initialize user vault", { error: vaultErrMsg });
+          throw new Error(`Failed to initialize vault: ${vaultErrMsg}`);
+        }
+      }
+    }
+
     // Nonce-based deterministic allowance PDA (v2):
     // - Read `next_nonce` from AllowanceNonceRegistry PDA (or 0 if missing)
     // - Derive Allowance PDA using that nonce
@@ -767,19 +803,26 @@ export class SolanaService {
 
     // Simulate first to get the actual Solana program error (instead of opaque
     // "WalletSendTransactionError: Unexpected error" from wallet adapters).
+    // Note: simulateTransaction on an unsigned tx requires sigVerify: false.
     try {
-      const simResult = await connection.simulateTransaction(tx);
+      const simResult = await connection.simulateTransaction(tx, {
+        sigVerify: false,
+        commitment: "confirmed",
+      } as any);
       if (simResult.value.err) {
         const simLogs = simResult.value.logs ?? [];
+        const errStr = typeof simResult.value.err === "string"
+          ? simResult.value.err
+          : JSON.stringify(simResult.value.err, null, 2);
         const errorCode = extractCustomProgramErrorCode({ simErr: simResult.value.err });
-        const logSnippet = simLogs.slice(-8).join("\n");
+        const logSnippet = simLogs.slice(-10).join("\n");
         logger.error("❌ Transaction simulation failed", {
-          err: JSON.stringify(simResult.value.err),
+          err: errStr,
           errorCode,
           logs: logSnippet,
         });
         throw new Error(
-          `Transaction simulation failed: ${JSON.stringify(simResult.value.err)}` +
+          `Transaction simulation failed: ${errStr}` +
           (errorCode != null ? ` (program error code: ${errorCode})` : "") +
           `\nLogs:\n${logSnippet}`
         );
@@ -792,9 +835,26 @@ export class SolanaService {
       // If user cancelled, propagate
       if (isUserRejectedError(simErr))
         throw new Error("User cancelled allowance approval");
-      // Otherwise log and continue — simulation might fail on unsigned tx but real send might work
+      // Log full error details for debugging
+      const simErrMsg = simErr instanceof Error ? simErr.message : String(simErr);
+      const simErrLogs = (simErr as any)?.logs ?? (simErr as any)?.simulationResponse?.logs;
+      if (simErrLogs) {
+        const logSnippet = Array.isArray(simErrLogs) ? simErrLogs.slice(-10).join("\n") : String(simErrLogs);
+        const errorCode = extractCustomProgramErrorCode(simErr);
+        logger.error("❌ Simulation threw an exception with logs", {
+          error: simErrMsg,
+          errorCode,
+          logs: logSnippet,
+        });
+        throw new Error(
+          `Transaction simulation failed: ${simErrMsg}` +
+          (errorCode != null ? ` (program error code: ${errorCode})` : "") +
+          `\nLogs:\n${logSnippet}`
+        );
+      }
+      // If no logs, this might just be an unsigned-tx issue — let it proceed
       logger.warn("⚠️ Pre-flight simulation error (may be expected for unsigned tx)", {
-        error: simErr instanceof Error ? simErr.message : String(simErr),
+        error: simErrMsg,
       });
     }
 
