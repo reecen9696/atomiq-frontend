@@ -275,17 +275,16 @@ export function PlayTimerModal({ isOpen, onClose }: PlayTimerModalProps) {
         error instanceof Error ? error.message : "Failed to create session";
       
       // Provide user-friendly messages for common errors
-      if (errorMsg.includes("already in use") || errorMsg.includes("0x0")) {
+      if (errorMsg.includes("already in use")) {
         errorMsg = "This allowance nonce was already used. Please try again — the nonce will auto-increment.";
-      } else if (errorMsg.includes("insufficient funds") || errorMsg.includes("0x1")) {
-        errorMsg = "Insufficient SOL in wallet for transaction fees. Please add some devnet SOL.";
       } else if (errorMsg.includes("cancelled") || errorMsg.includes("rejected")) {
         errorMsg = "Transaction was cancelled.";
       } else if (errorMsg.includes("CasinoPaused")) {
         errorMsg = "The casino is currently paused. Please try again later.";
-      } else if (errorMsg.includes("Unexpected error")) {
+      } else if (errorMsg.includes("Unexpected error") && !errorMsg.includes("Program logs")) {
         errorMsg = "Transaction failed — the Solana network may be congested. Please try again in a moment.";
       }
+      // For all other errors, show the actual message — it now contains real Solana details
       
       toast.error("Session creation failed", errorMsg);
     } finally {

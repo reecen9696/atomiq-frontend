@@ -801,62 +801,9 @@ export class SolanaService {
     );
     tx.recentBlockhash = latestBlockhash.blockhash;
 
-    // Simulate first to get the actual Solana program error (instead of opaque
-    // "WalletSendTransactionError: Unexpected error" from wallet adapters).
-    // Note: simulateTransaction on an unsigned tx requires sigVerify: false.
-    try {
-      const simResult = await connection.simulateTransaction(tx, {
-        sigVerify: false,
-        commitment: "confirmed",
-      } as any);
-      if (simResult.value.err) {
-        const simLogs = simResult.value.logs ?? [];
-        const errStr = typeof simResult.value.err === "string"
-          ? simResult.value.err
-          : JSON.stringify(simResult.value.err, null, 2);
-        const errorCode = extractCustomProgramErrorCode({ simErr: simResult.value.err });
-        const logSnippet = simLogs.slice(-10).join("\n");
-        logger.error("❌ Transaction simulation failed", {
-          err: errStr,
-          errorCode,
-          logs: logSnippet,
-        });
-        throw new Error(
-          `Transaction simulation failed: ${errStr}` +
-          (errorCode != null ? ` (program error code: ${errorCode})` : "") +
-          `\nLogs:\n${logSnippet}`
-        );
-      }
-      logger.debug("✅ Simulation passed", { unitsConsumed: simResult.value.unitsConsumed });
-    } catch (simErr) {
-      // If it's already our formatted error, re-throw
-      if (simErr instanceof Error && simErr.message.startsWith("Transaction simulation failed"))
-        throw simErr;
-      // If user cancelled, propagate
-      if (isUserRejectedError(simErr))
-        throw new Error("User cancelled allowance approval");
-      // Log full error details for debugging
-      const simErrMsg = simErr instanceof Error ? simErr.message : String(simErr);
-      const simErrLogs = (simErr as any)?.logs ?? (simErr as any)?.simulationResponse?.logs;
-      if (simErrLogs) {
-        const logSnippet = Array.isArray(simErrLogs) ? simErrLogs.slice(-10).join("\n") : String(simErrLogs);
-        const errorCode = extractCustomProgramErrorCode(simErr);
-        logger.error("❌ Simulation threw an exception with logs", {
-          error: simErrMsg,
-          errorCode,
-          logs: logSnippet,
-        });
-        throw new Error(
-          `Transaction simulation failed: ${simErrMsg}` +
-          (errorCode != null ? ` (program error code: ${errorCode})` : "") +
-          `\nLogs:\n${logSnippet}`
-        );
-      }
-      // If no logs, this might just be an unsigned-tx issue — let it proceed
-      logger.warn("⚠️ Pre-flight simulation error (may be expected for unsigned tx)", {
-        error: simErrMsg,
-      });
-    }
+    // Skip pre-flight simulation for unsigned legacy Transaction — the
+    // signTransaction or sendTransaction path will handle simulation. We
+    // extract detailed errors from their responses instead.
 
     // If signTransaction is available, use the more reliable sign-then-send path
     if (params.signTransaction) {
@@ -925,10 +872,20 @@ export class SolanaService {
         usedNonce: nonce,
       };
     } catch (err) {
-      logger.error("❌ Allowance approval failed", err);
+      // Extract detailed error info — wallet adapters and sendRawTransaction
+      // often include logs/error details in non-standard properties.
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const errLogs: string[] = (err as any)?.logs ?? (err as any)?.simulationResponse?.logs ?? [];
+      const errorCode = extractCustomProgramErrorCode(err);
+      
+      logger.error("❌ Allowance approval failed", {
+        message: errMsg,
+        errorCode,
+        logs: errLogs.slice(-10).join("\n"),
+        fullError: String(err),
+      });
 
       // If it's "already processed", try again with skipPreflight
-      const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.toLowerCase().includes("already been processed")) {
         logger.debug("🔄 Retrying with skipPreflight: true");
         try {
@@ -959,6 +916,16 @@ export class SolanaService {
 
       if (isUserRejectedError(err))
         throw new Error("User cancelled allowance approval");
+      
+      // Enrich opaque "Unexpected error" with any available details
+      if (errMsg.includes("Unexpected error") || errMsg.includes("failed to send")) {
+        const details = errLogs.length > 0
+          ? `\nProgram logs:\n${errLogs.slice(-8).join("\n")}`
+          : errorCode != null
+            ? ` (program error code: ${errorCode})`
+            : "";
+        throw new Error(`Transaction failed: ${errMsg}${details}`);
+      }
       throw err;
     }
   }
