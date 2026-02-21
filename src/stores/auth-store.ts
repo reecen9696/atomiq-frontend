@@ -23,6 +23,7 @@ interface AuthState {
   updateBalance: (balance: number) => void;
   updateVaultInfo: (vaultAddress: string, vaultBalance: number) => void;
   revertBetAmount: (amount: number) => void;
+  processBetOutcome: (betAmount: number, won: boolean, payout: number) => void;
   setConnecting: (connecting: boolean) => void;
   setOnboarding: (onboarding: boolean) => void;
   setHasCompletedInitialLoad: (completed: boolean) => void;
@@ -75,10 +76,24 @@ export const useAuthStore = create<AuthState>()(
           user: state.user
             ? {
                 ...state.user,
-                vaultBalance: (state.user.vaultBalance || 0) - amount,
+                vaultBalance: (state.user.vaultBalance || 0) + amount,
               }
             : null,
         })),
+      processBetOutcome: (betAmount: number, won: boolean, payout: number) =>
+        set((state) => {
+          if (!state.user) return state;
+          const currentBalance = state.user.vaultBalance || 0;
+          const newBalance = won
+            ? currentBalance + payout - betAmount
+            : currentBalance - betAmount;
+          return {
+            user: {
+              ...state.user,
+              vaultBalance: Math.max(0, newBalance),
+            },
+          };
+        }),
       setConnecting: (isConnecting: boolean) => set({ isConnecting }),
       setOnboarding: (isOnboarding: boolean) => set({ isOnboarding }),
       setHasCompletedInitialLoad: (hasCompletedInitialLoad: boolean) =>
