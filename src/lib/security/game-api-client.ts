@@ -170,6 +170,17 @@ async function playGame<T>(
  * Game-specific API methods
  */
 export const gameApiClient = {
+  /**
+   * Unified play endpoint — matches backend /api/sdk/play
+   */
+  play: async (request: PlayRequest & {
+    player_address: string;
+    vault_address?: string;
+    game_type: string;
+    token: { symbol: string };
+    game_params: Record<string, any>;
+  }) => playGame(request.game_type as GameType, "/api/sdk/play", request),
+
   coinflip: {
     play: (request: PlayRequest & { choice: string }) =>
       playGame("coinflip", "/api/coinflip/play", request),
@@ -228,6 +239,21 @@ export const gameApiClient = {
       const message = axios.isAxiosError(error)
         ? (error.response?.data as any)?.error || error.message
         : "Failed to verify game";
+      return { success: false, error: message };
+    }
+  },
+
+  /**
+   * Get vault balance for a player
+   */
+  getBalance: async (playerId: string) => {
+    try {
+      const response = await apiInstance.get(`/api/sdk/balance/${playerId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data as any)?.error || error.message
+        : "Failed to fetch balance";
       return { success: false, error: message };
     }
   },

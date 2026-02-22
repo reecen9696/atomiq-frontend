@@ -768,7 +768,7 @@ const Plinko = () => {
         setBetResponse(responseData);
 
         const won = responseData.result.outcome === "win";
-        const payout = responseData.result.payment?.payout_amount || (won ? betAmount * responseData.result.multiplier : 0);
+        const payout = responseData.result.payment?.payout_amount ?? betAmount * (responseData.result.multiplier || 0);
 
         // Drop ball with the guard handle — resolve() will be called when ball lands.
         // The bet amount was already deducted by guardBet(), so dropBall just
@@ -798,7 +798,7 @@ const Plinko = () => {
             if (pollData && (pollData.status === "complete" || pollData.result) && pollData.result) {
               setBetResponse(pollData);
               const won = pollData.result.outcome === "win";
-              const payout = pollData.result.payment?.payout_amount || (won ? betAmount * pollData.result.multiplier : 0);
+              const payout = pollData.result.payment?.payout_amount ?? betAmount * (pollData.result.multiplier || 0);
               dropBall(pollData.result.bucket, {
                 betAmount,
                 won,
