@@ -780,6 +780,40 @@ const Plinko = () => {
           guard, // Pass guard to resolve when ball lands
         });
         setPlayLoading(false);
+      } else if (responseData?.status === "pending" && responseData?.game_id) {
+        // Bet was submitted to blockchain but result not yet available.
+        // Poll for the result instead of reverting — the bet DID go through.
+        console.log("⏳ Plinko bet pending, polling for result:", responseData.game_id);
+        const pollForResult = async (gameId: string, attempts = 0): Promise<void> => {
+          if (attempts >= 15) {
+            console.warn("⏳ Plinko poll timeout — balance will correct via reconciliation");
+            guard.revert();
+            setPlayLoading(false);
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            const pollResult = await gameApiClient.getResult(gameId);
+            const pollData = pollResult.data as any;
+            if (pollData && (pollData.status === "complete" || pollData.result) && pollData.result) {
+              setBetResponse(pollData);
+              const won = pollData.result.outcome === "win";
+              const payout = pollData.result.payment?.payout_amount || (won ? betAmount * pollData.result.multiplier : 0);
+              dropBall(pollData.result.bucket, {
+                betAmount,
+                won,
+                payout,
+                guard,
+              });
+              setPlayLoading(false);
+              return;
+            }
+            return pollForResult(gameId, attempts + 1);
+          } catch {
+            return pollForResult(gameId, attempts + 1);
+          }
+        };
+        pollForResult(responseData.game_id);
       } else {
         console.error("❌ Invalid response format:", responseData);
         guard.revert();

@@ -48,6 +48,7 @@ export function CoinflipGame() {
     error,
     clearCurrentGame,
     clearError,
+    checkGameResult,
   } = useBetting(publicKey?.toBase58() ?? null, bettingService);
 
   const [betAmount, setBetAmount] = useState("0.1");
@@ -130,8 +131,36 @@ export function CoinflipGame() {
           clearCurrentGame();
         }, 3000);
       }
+    } else if (gameResult && gameResult.status === "pending" && gameResult.game_id) {
+      // Bet was submitted to blockchain but result not yet available.
+      // Poll for the result instead of leaving the guard dangling.
+      console.log("⏳ Coinflip bet pending, polling for result:", gameResult.game_id);
+      let cancelled = false;
+      const pollForResult = async (gameId: string, attempts = 0) => {
+        if (cancelled || attempts >= 15) {
+          if (!cancelled && activeGuardRef.current && !activeGuardRef.current.settled) {
+            console.warn("⏳ Coinflip poll timeout — reverting guard, balance will correct via reconciliation");
+            activeGuardRef.current.revert();
+            activeGuardRef.current = null;
+          }
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+        try {
+          const pollResult = await checkGameResult(gameId);
+          if (pollResult && pollResult.status === "complete") {
+            // processBetResult will be triggered by the gameResult state change
+            return;
+          }
+          if (!cancelled) return pollForResult(gameId, attempts + 1);
+        } catch {
+          if (!cancelled) return pollForResult(gameId, attempts + 1);
+        }
+      };
+      pollForResult(gameResult.game_id);
+      return () => { cancelled = true; };
     }
-  }, [gameResult, showResult, clearCurrentGame, processBetResult]);
+  }, [gameResult, showResult, clearCurrentGame, processBetResult, checkGameResult]);
 
   const handleBetClick = async () => {
     if (!isConnected) {

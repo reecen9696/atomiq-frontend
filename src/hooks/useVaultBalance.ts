@@ -5,11 +5,13 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { solanaService } from "@/services/solana";
 import { logger } from "@/lib/logger";
-import { getInFlightTotal, getUnsettledPnL } from "@/hooks/useBetGuard";
+import { getInFlightTotal, getUnsettledPnL, consumeReconciliationRequest, isInSettlementGrace, clearUnsettledPnL } from "@/hooks/useBetGuard";
 
 // Reconciliation configuration
-const RECONCILIATION_INTERVAL = 30000; // 30 seconds
+const RECONCILIATION_INTERVAL = 10000; // 10 seconds (reduced from 30s for faster post-bet correction)
 const BALANCE_DRIFT_THRESHOLD = 0.001; // 0.001 SOL threshold (absolute amount, not USD-pegged)
+
+
 
 export function useVaultBalance() {
   const { publicKey } = useWallet();
@@ -90,6 +92,14 @@ export function useVaultBalance() {
       return;
     }
 
+    // Skip reconciliation during the settlement grace period.
+    // After a bet resolves, the optimistic balance is correct but on-chain
+    // hasn't settled yet (~5-15s). Running reconciliation now would fetch the
+    // stale on-chain balance and risk overwriting the correct optimistic value.
+    if (isInSettlementGrace()) {
+      return;
+    }
+
     // Prevent concurrent reconciliation attempts
     if (reconcilingInProgressRef.current) {
       return;
@@ -115,36 +125,45 @@ export function useVaultBalance() {
         const onChainBalance =
           Number(vaultInfo.state.solBalanceLamports || 0n) / 1e9;
         const currentOptimisticBalance = user?.vaultBalance || 0;
-
-        // The optimistic balance reflects:
-        //   optimistic = onChain - inFlight + unsettledPnL
-        // where inFlight = bets deducted but not yet resolved,
-        // and unsettledPnL = net P&L from resolved bets not yet on-chain.
-        //
-        // To check for genuine drift (deposits, withdrawals, on-chain
-        // settlement applying), we compute what on-chain SHOULD be:
-        //   expectedOnChain = optimistic + inFlight - unsettledPnL
-        // If actual on-chain differs, it's a real event (deposit, settlement).
         const inFlightAmount = getInFlightTotal();
         const unsettledPnL = getUnsettledPnL();
+
+        // The on-chain balance is the absolute source of truth.
+        // The optimistic balance should equal: onChain - inFlight + unsettledPnL
+        // But unsettledPnL tracking is inherently unreliable because we don't
+        // know exactly when on-chain settlement applies. So we use a simpler
+        // approach:
+        //
+        // 1. Compute what balance on-chain SHOULD be (excluding in-flight):
+        //    expectedOnChain = optimistic + inFlight - unsettledPnL
+        // 2. If on-chain matches expected, everything is consistent.
+        // 3. If on-chain differs, accept it as truth:
+        //    reconciledBalance = onChain - inFlight
+        //    (don't add unsettledPnL back — it's already in on-chain if settled)
         const expectedOnChain =
           currentOptimisticBalance + inFlightAmount - unsettledPnL;
 
         const adjustedDrift = Math.abs(onChainBalance - expectedOnChain);
         if (adjustedDrift > BALANCE_DRIFT_THRESHOLD) {
-          // Genuine drift detected (deposit, withdrawal, or settlement).
-          // Recompute optimistic = onChain - inFlight + unsettledPnL
+          // Drift detected: on-chain doesn't match what we expected.
+          // This means either a deposit/withdrawal happened, OR on-chain
+          // settlement has applied (partially or fully).
+          //
+          // Accept on-chain as truth and adjust only for in-flight bets.
+          // Clear unsettled PnL — if settlement applied on-chain, those
+          // entries are now reflected in onChainBalance.
           const reconciledBalance = Math.max(
             0,
-            onChainBalance - inFlightAmount + unsettledPnL,
+            onChainBalance - inFlightAmount,
           );
           logger.info(
             `Balance reconciliation: on-chain=${onChainBalance.toFixed(4)}, ` +
               `optimistic=${currentOptimisticBalance.toFixed(4)}, ` +
               `in-flight=${inFlightAmount.toFixed(4)}, ` +
-              `unsettled-pnl=${unsettledPnL.toFixed(4)}, ` +
+              `unsettled-pnl=${unsettledPnL.toFixed(4)} (clearing), ` +
               `reconciled=${reconciledBalance.toFixed(4)} SOL`,
           );
+          clearUnsettledPnL();
           updateVaultInfo(vaultInfo.address, reconciledBalance);
         }
       }
@@ -181,9 +200,19 @@ export function useVaultBalance() {
     }
 
     // Set up reconciliation interval - uses the ref to avoid recreating interval
+    // Also checks for pending reconciliation requests (from useBetGuard) on a faster tick
     reconciliationIntervalRef.current = setInterval(() => {
       reconciliationFnRef.current?.();
     }, RECONCILIATION_INTERVAL);
+
+    // Fast check for bet-triggered reconciliation requests (every 2 seconds)
+    const fastCheckInterval = setInterval(() => {
+      if (consumeReconciliationRequest()) {
+        // Reset the lastReconciled time so the reconciliation function runs immediately
+        lastReconciledRef.current = 0;
+        reconciliationFnRef.current?.();
+      }
+    }, 2000);
 
     // Cleanup on unmount
     return () => {
@@ -191,6 +220,7 @@ export function useVaultBalance() {
         clearInterval(reconciliationIntervalRef.current);
         reconciliationIntervalRef.current = null;
       }
+      clearInterval(fastCheckInterval);
     };
   }, [publicKey, hasVault]);
 

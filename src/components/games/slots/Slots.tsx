@@ -409,6 +409,48 @@ const Slots: React.FC = () => {
         } else {
           setPlayLoading(false);
         }
+      } else if (responseData?.status === "pending" && responseData?.game_id) {
+        // Bet was submitted to blockchain but result not yet available.
+        // Poll for the result instead of reverting — the bet DID go through.
+        console.log("⏳ Slot bet pending, polling for result:", responseData.game_id);
+        const pollForResult = async (gameId: string, attempts = 0): Promise<void> => {
+          if (attempts >= 15) {
+            console.warn("⏳ Slot poll timeout — balance will correct via reconciliation");
+            guard.revert();
+            setPlayLoading(false);
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            const pollResult = await gameApiClient.getResult(gameId);
+            const pollData = pollResult.data as any;
+            if ((pollData?.status === "complete" || pollData?.result) && pollData?.result) {
+              const slotResult = pollData.result;
+              const gameData = slotResult.game_data || slotResult;
+              const fairResult = gameData.grid;
+              const rewardData =
+                gameData.wins?.map((win: any) => [
+                  win.multiplier,
+                  win.positions,
+                  win.payline_index,
+                ]) || [];
+              const payoutAmount = slotResult.payment?.payout_amount || 0;
+              const won = payoutAmount > 0;
+              guard.resolve(won, payoutAmount);
+              if (gameAppRef.current) {
+                gameAppRef.current.showResult(fairResult, rewardData);
+                setTimeout(() => setPlayLoading(false), 8000);
+              } else {
+                setPlayLoading(false);
+              }
+              return;
+            }
+            return pollForResult(gameId, attempts + 1);
+          } catch {
+            return pollForResult(gameId, attempts + 1);
+          }
+        };
+        pollForResult(responseData.game_id);
       } else {
         guard.revert();
         setPlayLoading(false);

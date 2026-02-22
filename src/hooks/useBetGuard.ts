@@ -69,6 +69,18 @@ const _pnlEntries: PnLEntry[] = [];
 // How long before we assume a settlement has been applied on-chain (2 minutes)
 const PNL_DECAY_MS = 120_000;
 
+// Grace period after a bet resolves: block reconciliation to prevent
+// overwriting the correct optimistic balance with a stale on-chain value.
+// On-chain settlement typically takes 5-15 seconds, so the optimistic balance
+// is more accurate than on-chain during this window.
+const SETTLEMENT_GRACE_MS = 8_000;
+let _lastResolveTimestamp = 0;
+
+/** Check if we're within the settlement grace period (reconciliation should be skipped). */
+export function isInSettlementGrace(): boolean {
+  return Date.now() - _lastResolveTimestamp < SETTLEMENT_GRACE_MS;
+}
+
 /** Decay old P&L entries that have likely settled on-chain */
 function decayPnL() {
   const now = Date.now();
@@ -85,6 +97,16 @@ function decayPnL() {
   if (_pnlEntries.length === 0) _unsettledPnL = 0;
 }
 
+/**
+ * Clear all unsettled P&L entries.
+ * Called by reconciliation when on-chain balance is accepted as truth,
+ * meaning all pending settlements have been applied.
+ */
+export function clearUnsettledPnL(): void {
+  _pnlEntries.length = 0;
+  _unsettledPnL = 0;
+}
+
 /** Get the total SOL currently reserved by in-flight bets */
 export function getInFlightTotal(): number {
   return _inFlightTotal;
@@ -93,6 +115,23 @@ export function getInFlightTotal(): number {
 /** Get the number of currently in-flight bets */
 export function getInFlightCount(): number {
   return _inFlightCount;
+}
+
+// Module-level flag: signals useVaultBalance to run a reconciliation ASAP
+let _reconciliationRequested = false;
+
+/** Schedule a near-immediate reconciliation (called after guard.resolve). */
+export function requestReconciliation() {
+  _reconciliationRequested = true;
+}
+
+/** Check and clear the reconciliation request flag (called by useVaultBalance). */
+export function consumeReconciliationRequest(): boolean {
+  if (_reconciliationRequested) {
+    _reconciliationRequested = false;
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -167,6 +206,16 @@ export function useBetGuard() {
             revertBetAmount(payout);
           }
           // If payout is 0 (true loss): bet was already deducted, nothing to add.
+
+          // Mark the resolve timestamp — reconciliation will be blocked for
+          // SETTLEMENT_GRACE_MS to prevent overwriting the optimistic balance
+          // with a stale on-chain value (settlement takes ~5-15s on-chain).
+          _lastResolveTimestamp = Date.now();
+
+          // NOTE: We intentionally do NOT call requestReconciliation() here.
+          // The optimistic balance is already correct after revertBetAmount().
+          // Triggering an early reconciliation would fetch a stale on-chain
+          // balance (pre-settlement) and risk overwriting the correct value.
         },
 
         revert: () => {

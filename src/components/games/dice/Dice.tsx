@@ -757,6 +757,37 @@ const Dice: React.FC = () => {
         const payout = responseData.result.payment?.payout_amount || 0;
         guard.resolve(won, payout);
         setBetResponse(responseData.result);
+      } else if (responseData?.status === "pending" && responseData?.game_id) {
+        // Bet was submitted to blockchain but result not yet available.
+        // Poll for the result instead of reverting — the bet DID go through.
+        console.log("⏳ Dice bet pending, polling for result:", responseData.game_id);
+        const pollForResult = async (gameId: string, attempts = 0): Promise<void> => {
+          if (attempts >= 15) {
+            // After ~15 seconds of polling, fall back to reconciliation
+            console.warn("⏳ Dice poll timeout — balance will correct via reconciliation");
+            guard.revert();
+            setPlayLoading(false);
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            const pollResult = await gameApiClient.getResult(gameId);
+            const pollData = pollResult.data as any;
+            if (pollData?.status === "complete" && pollData?.result) {
+              const won = pollData.result.outcome === "win";
+              const payout = pollData.result.payment?.payout_amount || 0;
+              guard.resolve(won, payout);
+              setBetResponse(pollData.result);
+              setPlayLoading(false);
+              return;
+            }
+            // Still pending — retry
+            return pollForResult(gameId, attempts + 1);
+          } catch {
+            return pollForResult(gameId, attempts + 1);
+          }
+        };
+        pollForResult(responseData.game_id);
       } else {
         console.error("❌ Invalid response format:", responseData);
         guard.revert();
